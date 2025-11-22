@@ -1,65 +1,78 @@
-# Integration Guide for Frontend Teams
+# Integration Guide for Frontend Teams - Firebase Edition
 
 ## Overview
 
-This guide is for the teams working on:
+The backend now uses **Firebase** instead of Convex. This guide is for teams working on:
 - **Police Officer Dashboard** (Frontend)
 - **Citizen Dashboard** (Frontend)  
 - **RPI Zero W** (Hardware/Python)
 
-The backend is ready and provides all the APIs you need via Convex.
-
 ---
 
-## 🔗 Getting Your Convex URL
+## 🔥 Firebase Setup
 
-After the backend team runs:
-```bash
-cd backend
-npx convex dev
-```
+### Firebase Project Details
 
-You'll receive a URL like: `https://happy-animal-123.convex.cloud`
+After backend setup completes, you'll get:
+- **Project ID**: `cognisecure-prod`
+- **Web App Config**: Firebase Console → Project Settings → Your apps
+- **Functions URL**: `https://REGION-PROJECT.cloudfunctions.net/`
 
 ---
 
 ## 📦 Frontend Setup (Police & Citizen Dashboards)
 
-### 1. Install Convex Client
+### 1. Install Firebase SDK
 
 ```bash
-npm install convex
+npm install firebase
 ```
 
-### 2. Get Generated API Types
+### 2. Initialize Firebase
 
-Copy the `backend/convex/_generated` folder to your project, or generate it yourself:
+Create `src/firebase.js`:
 
-```bash
-# In your frontend project
-npx convex dev --once
+```javascript
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
+import { getStorage } from 'firebase/storage';
+import { getMessaging } from 'firebase/messaging';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize services
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const functions = getFunctions(app);
+export const storage = getStorage(app);
+export const messaging = getMessaging(app);
+
+export default app;
 ```
 
-### 3. Add Environment Variable
+### 3. Environment Variables
 
 Create `.env.local`:
+
 ```
-VITE_CONVEX_URL=https://happy-animal-123.convex.cloud
-```
-
-### 4. Setup Provider
-
-In your `main.tsx`:
-```typescript
-import { ConvexProvider, ConvexReactClient } from "convex/react";
-
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL);
-
-root.render(
-  <ConvexProvider client={convex}>
-    <App />
-  </ConvexProvider>
-);
+VITE_FIREBASE_API_KEY=AIzaSy...
+VITE_FIREBASE_AUTH_DOMAIN=cognisecure-prod.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=cognisecure-prod
+VITE_FIREBASE_STORAGE_BUCKET=cognisecure-prod.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abc123
 ```
 
 ---
@@ -68,105 +81,171 @@ root.render(
 
 ### Authentication Flow
 
-```typescript
-import { useConvex, useMutation, useQuery } from "convex/react";
-import { api } from "./convex/_generated/api";
+```javascript
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
+import { auth, functions } from './firebase';
 
-// 1. After passkey/face scan verification, create session
-const createSession = useMutation(api.auth.createSession);
-const session = await createSession({
-  officer_id: "officer-db-id",
-  ip_address: "192.168.1.1"
+// Login with email/password
+const handleLogin = async (email, password) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    
+    // Get ID token (includes custom claims for role)
+    const idTokenResult = await user.getIdTokenResult();
+    const role = idTokenResult.claims.role;
+    
+    console.log('Logged in as:', role);
+    
+    // Update last login
+    const updateLogin = httpsCallable(functions, 'updateLastLogin');
+    await updateLogin();
+    
+    return { user, role };
+  } catch (error) {
+    console.error('Login failed:', error);
+    throw error;
+  }
+};
+
+// Get current user and role
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    const idTokenResult = await user.getIdTokenResult();
+    console.log('User role:', idTokenResult.claims.role);
+  } else {
+    console.log('Not logged in');
+  }
 });
-
-// Store token
-localStorage.setItem("session_token", session.token);
-
-// 2. Validate session on page load
-const sessionToken = localStorage.getItem("session_token");
-const sessionData = useQuery(api.auth.validateSession, 
-  sessionToken ? { token: sessionToken } : "skip"
-);
-
-if (!sessionData?.valid) {
-  // Redirect to login
-}
 ```
 
 ### Get Active Alerts
 
-```typescript
-const alerts = useQuery(api.alerts.getActiveAlerts);
+```javascript
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase';
 
-return (
-  <div>
-    {alerts?.map(alert => (
-      <AlertCard
-        key={alert._id}
-        photo={alert.photo_url}
-        video={alert.video_url}
-        timestamp={alert.timestamp_recorded}
-        location={alert.location}
-        status={alert.status}
-      />
-    ))}
-  </div>
-);
+const getAlerts = httpsCallable(functions, 'getAlerts');
+
+const fetchAlerts = async () => {
+  try {
+    const result = await getAlerts({
+      status: 'active',
+      limit: 50
+    });
+    
+    const alerts = result.data.alerts;
+    return alerts;
+  } catch (error) {
+    console.error('Failed to fetch alerts:', error);
+  }
+};
 ```
 
-### Acknowledge Alert
+### Update Alert Status
 
-```typescript
-const updateStatus = useMutation(api.alerts.updateAlertStatus);
+```javascript
+const updateAlertStatus = httpsCallable(functions, 'updateAlertStatus');
 
-const handleAcknowledge = async (alertId: string) => {
-  await updateStatus({
-    alert_id: alertId,
-    status: "acknowledged",
-    officer_id: currentOfficer._id,
-    notes: "Investigating"
-  });
+const handleAcknowledge = async (alertId) => {
+  try {
+    const result = await updateAlertStatus({
+      alert_id: alertId,
+      status: 'acknowledged',
+      notes: 'Investigating'
+    });
+    
+    console.log(result.data.message);
+  } catch (error) {
+    console.error('Failed to update:', error);
+  }
 };
 ```
 
 ### Query AI Agent
 
-```typescript
-import { useAction } from "convex/react";
+```javascript
+const queryAI = httpsCallable(functions, 'queryAI');
 
-const queryAI = useAction(api.aiAgent.queryAIAgent);
-const [loading, setLoading] = useState(false);
-const [response, setResponse] = useState("");
-
-const handleQuery = async (query: string, alertIds: string[]) => {
-  setLoading(true);
-  const result = await queryAI({
-    session_token: sessionToken,
-    query: query,
-    include_alert_ids: alertIds
-  });
-  
-  if (result.success) {
-    setResponse(result.answer);
-  } else {
-    alert(result.error); // Rate limited or blocked
+const handleAIQuery = async (query, alertIds) => {
+  try {
+    const result = await queryAI({
+      query: query,
+      alert_ids: alertIds  // Only these alerts will be accessible to AI
+    });
+    
+    if (result.data.success) {
+      console.log('AI Response:', result.data.answer);
+      console.log('Model:', result.data.model);
+      console.log('Tokens:', result.data.tokens);
+    } else {
+      alert(result.data.error); // Rate limited or blocked
+    }
+  } catch (error) {
+    if (error.code === 'functions/resource-exhausted') {
+      alert('Rate limit exceeded. Try again in an hour.');
+    }
+    console.error('AI query failed:', error);
   }
-  setLoading(false);
 };
 ```
 
 ### Register for Push Notifications
 
-```typescript
-// After getting FCM token from Firebase SDK
-const registerToken = useMutation(api.auth.registerFCMToken);
+```javascript
+import { getToken } from 'firebase/messaging';
+import { httpsCallable } from 'firebase/functions';
+import { messaging, functions } from './firebase';
 
-firebase.messaging().getToken().then(async (fcmToken) => {
-  await registerToken({
-    officer_id: currentOfficer._id,
-    fcm_token: fcmToken
-  });
+const registerFCM = async () => {
+  try {
+    // Request permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.log('Notification permission denied');
+      return;
+    }
+    
+    // Get FCM token
+    const token = await getToken(messaging, {
+      vapidKey: 'YOUR_VAPID_KEY'
+    });
+    
+    // Register token with backend
+    const registerToken = httpsCallable(functions, 'registerDeviceToken');
+    await registerToken({ fcm_token: token });
+    
+    console.log('FCM token registered');
+  } catch (error) {
+    console.error('FCM registration failed:', error);
+  }
+};
+
+// Handle incoming notifications
+onMessage(messaging, (payload) => {
+  console.log('Notification received:', payload);
+  const { title, body } = payload.notification;
+  const { alert_id, photo_url, video_url } = payload.data;
+  
+  // Show notification or update  UI
+  new Notification(title, { body, icon: photo_url });
 });
+```
+
+### Get Alert Statistics
+
+```javascript
+const getStats = httpsCallable(functions, 'getAlertStats');
+
+const fetchStats = async () => {
+  const result = await getStats({ timeframe_hours: 24 });
+  const stats = result.data.stats;
+  
+  console.log('Total alerts:', stats.total);
+  console.log('Active:', stats.active);
+  console.log('Average delay:', stats.average_delay_ms, 'ms');
+};
 ```
 
 ---
@@ -175,65 +254,59 @@ firebase.messaging().getToken().then(async (fcmToken) => {
 
 ### Get Recent Updates (No Auth Required)
 
-```typescript
-const updates = useQuery(api.citizenUpdates.getRecentUpdates, { 
-  limit: 20 
-});
+```javascript
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase';
 
-return (
-  <div>
-    {updates?.map(update => (
-      <UpdateCard
-        key={update._id}
-        title={update.title}
-        content={update.content}
-        category={update.category}
-        priority={update.priority}
-        timestamp={update.created_at}
-      />
-    ))}
-  </div>
-);
+const getUpdates = httpsCallable(functions, 'getUpdates');
+
+const fetchUpdates = async () => {
+  try {
+    const result = await getUpdates({ limit: 20 });
+    const updates = result.data.updates;
+    
+    return updates;
+  } catch (error) {
+    console.error('Failed to fetch updates:', error);
+  }
+};
 ```
 
 ### Filter by Category
 
-```typescript
-const crimeAlerts = useQuery(api.citizenUpdates.getUpdatesByCategory, {
-  category: "crime_alert",
-  limit: 10
-});
+```javascript
+const fetchCrimeAlerts = async () => {
+  const result = await getUpdates({
+    category: 'crime_alert',
+    limit: 10
+  });
+  
+  return result.data.updates;
+};
 ```
 
-### Get High Priority Updates
+### Increment View Count
 
-```typescript
-const priorityUpdates = useQuery(api.citizenUpdates.getHighPriorityUpdates);
+```javascript
+const incrementView = httpsCallable(functions, 'incrementViewCount');
 
-// Returns: { high: [...], critical: [...] }
+const handleView = async (updateId) => {
+  await incrementView({ update_id: updateId });
+};
 ```
 
 ---
 
 ## 🤖 RPI Zero W Integration
 
-### Sending Alerts to Backend
-
-Your RD (relay device) should POST alerts after motion detection and object gone.
-
-**Endpoint:**
-```
-POST https://happy-animal-123.convex.cloud/api/alerts/receive
-```
-
-**But actually**, use Convex client for direct access:
+### Sending Alerts to Firebase
 
 ```python
-# Install: pip install convex
-from convex import ConvexClient
+import requests
 import time
 
-client = ConvexClient("https://happy-animal-123.convex.cloud")
+# Your Cloud Function URL
+ALERT_ENDPOINT = "https://REGION-PROJECT.cloudfunctions.net/receiveAlert"
 
 def send_alert(photo_url, video_url, device_id):
     """
@@ -245,81 +318,52 @@ def send_alert(photo_url, video_url, device_id):
     timestamp_recorded = int(time.time() * 1000)  # When incident happened
     timestamp_sent = int(time.time() * 1000)       # Now
     
-    result = client.mutation("alerts:receiveAlert", {
+    data = {
         "timestamp_recorded": timestamp_recorded,
         "timestamp_sent": timestamp_sent,
         "photo_url": photo_url,
         "video_url": video_url,
         "rpi_device_id": device_id,
         "location": "Main Entrance"  # Optional
-    })
+    }
     
-    print(f"Alert sent! ID: {result['alert_id']}, Delay: {result['delay_ms']}ms")
-    return result['alert_id']
+    response = requests.post(ALERT_ENDPOINT, json=data)
+    result = response.json()
+    
+    if result['success']:
+        print(f"Alert sent! ID: {result['alert_id']}, Delay: {result['delay_ms']}ms")
+        return result['alert_id']
+    else:
+        print(f"Failed: {result.get('error')}")
+        return None
 ```
 
-### Complete RPI Flow
+### Upload to Firebase Storage
 
 ```python
-# 1. Motion detected
-# 2. Wait for object to leave
-# 3. Extract 5-second video clip ending at motion end
-# 4. Extract photo from clip (best frame with person)
+from firebase_admin import credentials, storage, initialize_app
 
-# 5. Upload to Firebase Storage
-photo_url = upload_to_firebase_storage(photo_bytes, f"{device_id}/{timestamp}.jpg")
-video_url = upload_to_firebase_storage(video_bytes, f"{device_id}/{timestamp}.mp4")
+# Initialize Firebase Admin SDK
+cred = credentials.Certificate('path/to/serviceAccountKey.json')
+initialize_app(cred, {
+    'storageBucket': 'cognisecure-prod.appspot.com'
+})
 
-# 6. Send to backend
-alert_id = send_alert(photo_url, video_url, device_id)
+def upload_to_storage(file_bytes, file_name, device_id):
+    """Upload file to Firebase Storage"""
+    bucket = storage.bucket()
+    blob = bucket.blob(f'alerts/{device_id}/{file_name}')
+    blob.upload_from_string(file_bytes)
+    
+    # Make publicly accessible (or use signed URLs)
+    blob.make_public()
+    
+    return blob.public_url
 
-# 7. Backend automatically notifies all officers via FCM
-```
-
----
-
-## 📊 Useful Queries for Police Dashboard
-
-### Alert Statistics
-
-```typescript
-const stats = useQuery(api.alerts.getAlertStats, {
-  timeframe_hours: 24 // Last 24 hours
-});
-
-// Returns:
-// {
-//   total: 45,
-//   active: 12,
-//   acknowledged: 20,
-//   resolved: 10,
-//   false_alarms: 3,
-//   average_delay_ms: 234
-// }
-```
-
-### Alert History with Filters
-
-```typescript
-// By status
-const resolved = useQuery(api.alerts.getAlertHistory, {
-  status: "resolved",
-  limit: 50
-});
-
-// By device
-const deviceAlerts = useQuery(api.alerts.getAlertHistory, {
-  rpi_device_id: "RPI_001",
-  limit: 100
-});
-```
-
-### Officer Profile
-
-```typescript
-const profile = useQuery(api.auth.getOfficerProfile, {
-  officer_id: currentOfficer._id
-});
+# Complete flow
+photo_url = upload_to_storage(photo_bytes, f"{timestamp}.jpg", "RPI_001")
+video_url = upload_to_storage(video_bytes, f"{timestamp}.mp4", "RPI_001")
+alert_id = send_alert(photo_url, video_url, "RPI_001")
 ```
 
 ---
@@ -328,45 +372,60 @@ const profile = useQuery(api.auth.getOfficerProfile, {
 
 ### Police Dashboard
 
-- Always validate session before sensitive operations
-- Store session token securely (httpOnly cookie preferred)
-- Implement auto-logout on expiration
-- Use HTTPS in production
+- Firebase Auth handles sessions automatically
+- Custom claims (role) are set by backend
+- ID token refreshed automatically
+- Use Firebase Auth's `onAuthStateChanged` for state management
 
 ### AI Agent Usage
 
 - Limit: 50 queries/hour per officer
 - Must provide specific alert IDs
 - AI cannot access anything outside provided context
-- All queries are logged for audit
+- All queries logged for audit
+- Rate limit errors: `functions/resource-exhausted`
 
 ### Citizen Dashboard
 
-- No authentication required
-- Only published updates are visible
+- No authentication required for reading updates
 - Cannot access any police/alert data
+- Firestore rules enforce public access only
 
 ---
 
 ## 🚀 Testing Locally
 
-Both dashboards can run simultaneously with backend:
+### Firebase Emulators
+
+The backend can run locally with emulators:
 
 ```bash
-# Terminal 1: Backend
 cd backend
-npx convex dev
-
-# Terminal 2: Police Dashboard
-cd police-dashboard
-npm run dev
-
-# Terminal 3: Citizen Dashboard
-cd citizen-dashboard
-npm run dev
+firebase emulators:start
 ```
 
-All will communicate via Convex deployment.
+Update your `.env.local` to point to emulators:
+
+```
+VITE_FIREBASE_AUTH_DOMAIN=localhost
+VITE_FIREBASE_FUNCTIONS_HOST=http://localhost:5001
+```
+
+Then connect to emulators in your app:
+
+```javascript
+import { connectAuthEmulator } from 'firebase/auth';
+import { connectFirestoreEmulator } from 'firebase/firestore';
+import { connectFunctionsEmulator } from 'firebase/functions';
+import { connectStorageEmulator } from 'firebase/storage';
+
+if (import.meta.env.DEV) {
+  connectAuthEmulator(auth, 'http://localhost:9099');
+  connectFirestoreEmulator(db, 'localhost', 8080);
+  connectFunctionsEmulator(functions, 'localhost', 5001);
+  connectStorageEmulator(storage, 'localhost', 9199);
+}
+```
 
 ---
 
@@ -374,24 +433,52 @@ All will communicate via Convex deployment.
 
 Full documentation in [backend/README.md](file:///c:/Users/DELL/OneDrive/Desktop/cognisecure/backend/README.md)
 
-**Key Endpoints:**
-- Alerts: `api.alerts.*`
-- Auth: `api.auth.*`
-- Notifications: `api.notifications.*`
-- Citizen Updates: `api.citizenUpdates.*`
-- AI Agent: `api.aiAgent.queryAIAgent`
+**Available Functions:**
+- `receiveAlert` (HTTP) - RPI alert submission
+- `getAlerts` - Query alerts
+- `updateAlertStatus` - Update alert
+- `getAlertStats` - Statistics
+- `registerDeviceToken` - Register FCM
+- `removeDeviceToken` - Remove FCM
+- `queryAI` - AI agent (secured)
+- `getAILogs` - Fetch AI logs
+- `getUpdates` - Citizen updates
+- `createUpdate` - Create update (admin)
+- `updateUpdate`, `deleteUpdate` - Manage updates
+- `registerOfficer` - Register officer (admin)
+- `setOfficerRole` - Set role (admin)
+- `getOfficerProfile` - Get profile
+- `updateLastLogin` - Update login
+- `deactivateOfficer` - Deactivate (admin)
 
 ---
 
 ## ⚡ Real-time Updates
 
-Convex provides real-time subscriptions automatically:
+Use Firestore real-time listeners:
 
-```typescript
-// This will automatically update when new alerts arrive
-const alerts = useQuery(api.alerts.getActiveAlerts);
+```javascript
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from './firebase';
 
-// No polling needed!
+// Listen to active alerts
+const q = query(
+  collection(db, 'alerts'),
+  where('status', '==', 'active')
+);
+
+const unsubscribe = onSnapshot(q, (snapshot) => {
+  const alerts = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+  
+  console.log('Active alerts updated:', alerts);
+  // Update UI
+});
+
+// Cleanup when component unmounts
+// unsubscribe();
 ```
 
 ---
@@ -399,9 +486,9 @@ const alerts = useQuery(api.alerts.getActiveAlerts);
 ## 🎉 You're Ready!
 
 Contact the backend team for:
-- Convex deployment URL
-- Any schema questions
-- API clarifications
+- Firebase project credentials
+- Function deployment URLs
+- Service account keys (for RPI)
 - Testing support
 
 Good luck with the dashboards! 🚀

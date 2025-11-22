@@ -1,192 +1,339 @@
-# CogniSecure Backend
+# CogniSecure Backend - Firebase
 
-Convex backend for the CogniSecure security surveillance system.
+Firebase backend for the CogniSecure security surveillance system.
 
 ## Overview
 
-This backend handles:
-- **Alert Processing**: Receives alerts from Raspberry Pi devices via RD (relay device)
-- **Authentication**: Police officer authentication with passkey/face scan support
-- **Notifications**: Push notifications to police officers via Firebase Cloud Messaging
-- **AI Agent**: OpenRouter-powered AI assistant with strict security restrictions
-- **Citizen Updates**: Public announcements and safety information
-- **Audit Logging**: Comprehensive logging of all system activities
+This backend uses the complete Firebase ecosystem:
+
+- **Firestore**: NoSQL database for all collections
+- **Cloud Functions**: Serverless backend logic
+- **Firebase Authentication**: Officer authentication with custom claims/roles
+- **Firebase Storage**: Photo and video storage from RPI devices
+- **Cloud Messaging (FCM)**: Push notifications to officer devices
+- **OpenRouter AI**: AI agent integration via Cloud Functions
 
 ## Project Structure
 
 ```
 backend/
-├── convex/
-│   ├── schema.ts              # Database schema definitions
-│   ├── alerts.ts              # Alert processing and queries
-│   ├── auth.ts                # Authentication and session management
-│   ├── notifications.ts       # FCM push notification system
-│   ├── citizenUpdates.ts      # Public updates management
-│   ├── aiAgent.ts             # AI agent with security restrictions
-│   └── tsconfig.json          # TypeScript config for Convex
-├── package.json
-└── tsconfig.json
+├── functions/
+│   ├── src/
+│   │   ├── index.ts           # Main exports
+│   │   ├── alerts.ts          # Alert processing
+│   │   ├── notifications.ts   # FCM push notifications
+│   │   ├── aiAgent.ts         # AI with security restrictions
+│   │   ├── citizenUpdates.ts  # Public updates
+│   │   └── auth.ts            # Officer authentication
+│   ├── package.json
+│   └── tsconfig.json
+├── firebase.json               # Firebase configuration
+├── .firebaserc                 # Project mapping
+├── firestore.rules             # Database security rules
+├── firestore.indexes.json      # Composite indexes
+├── storage.rules               # Storage security rules
+└── package.json
 ```
 
 ## Setup
 
-### Prerequisites
+### 1. Install Firebase CLI
 
-- Node.js 18+ installed
-- Convex account (signup at [convex.dev](https://convex.dev))
-- Firebase project with Cloud Messaging enabled
-- OpenRouter API key
+```bash
+npm install -g firebase-tools
+```
 
-### Installation
+### 2. Login to Firebase
 
-1. Install dependencies:
+```bash
+firebase login
+```
+
+### 3. Create Firebase Project
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create new project: "cognisecure-prod"
+3. Enable services:
+   - **Firestore**: Database
+   - **Authentication**: Enable Email/Password
+   - **Storage**: Default bucket
+   - **Cloud Messaging**: Enable
+   - **Functions**: Enable Blaze plan (pay-as-you-go)
+
+### 4. Initialize Project
+
 ```bash
 cd backend
-npm install
+firebase use --add
+# Select: cognisecure-prod
+# Alias: default
 ```
 
-2. Initialize Convex:
+### 5. Install Dependencies
+
 ```bash
-npx convex dev
+# Root dependencies
+npm install
+
+# Functions dependencies
+cd functions
+npm install
+cd ..
 ```
 
-This will:
-- Create a new Convex project (or link to existing)
-- Generate API types in `convex/_generated/`
-- Start the development server
+### 6. Set Environment Variables
 
-3. Set environment variables in Convex dashboard:
-   - `OPENROUTER_API_KEY`: Your OpenRouter API key
-   - `FIREBASE_SERVICE_ACCOUNT`: Firebase service account JSON (base64 encoded)
+```bash
+firebase functions:config:set openrouter.api_key="YOUR_OPENROUTER_API_KEY"
+```
 
-## Database Schema
+### 7. Deploy
 
-### Tables
+```bash
+# Deploy everything
+firebase deploy
 
-- **alerts**: Incident alerts from RPI devices with photos/videos
-- **police_officers**: Officer profiles and authentication data
-- **sessions**: Active sessions for authenticated officers
-- **citizen_updates**: Public announcements and safety information
-- **ai_agent_logs**: Audit trail for AI agent queries
-- **notification_logs**: Notification delivery tracking
-- **rate_limits**: Rate limiting for AI agent queries
+# Or deploy specific parts
+firebase deploy --only firestore:rules
+firebase deploy --only storage
+firebase deploy --only functions
+```
 
-## API Reference
+## Firestore Collections
 
-### Alerts
+### `alerts`
+Incident alerts from RPI devices.
 
-- `receiveAlert`: Receive alert from RD with photo/video URLs
-- `getActiveAlerts`: Get all unresolved alerts
-- `getAlertById`: Get specific alert details
-- `updateAlertStatus`: Mark alert as acknowledged/resolved
-- `getAlertHistory`: Query historical alerts with filters
-- `getAlertStats`: Get alert statistics
+**Fields:**
+- `timestamp_recorded`: When incident happened
+- `timestamp_sent`: When RD sent alert
+- `timestamp_received`: When backend received
+- `delay_ms`: Calculated latency
+- `photo_url`: Firebase Storage URL
+- `video_url`: Firebase Storage URL
+- `rpi_device_id`: Device identifier
+- `location`: Optional location
+- `status`: "active" | "acknowledged" | "resolved" | "false_alarm"
+- `acknowledged_by`, `resolved_by`: Officer UIDs
+- `notes`: Optional notes
 
-### Authentication
+### `officers`
+Police officer profiles.
 
-- `registerOfficer`: Register new police officer
-- `createSession`: Create authenticated session
-- `validateSession`: Validate session token
-- `invalidateSession`: Logout (invalidate session)
-- `storePasskey`: Store passkey credentials
-- `storeFaceScan`: Store face scan reference
-- `registerFCMToken`: Register device for push notifications
+**Fields:**
+- `officer_id`: Badge number
+- `name`, `email`, `phone_number`
+- `role`: "officer" | "admin" | "supervisor"
+- `is_active`: Boolean
+- `fcm_tokens`: Array of device tokens
+- `created_at`, `last_login`
 
-### Notifications
+### `citizenUpdates`
+Public announcements.
 
-- `notifyAllOfficers`: Send FCM push to all active officers
-- `retryFailedNotification`: Retry failed notification delivery
+**Fields:**
+- `title`, `content`
+- `category`: "safety_tip" | "crime_alert" | "announcement" | "statistics"
+- `priority`: "low" | "medium" | "high" | "critical"
+- `is_published`: Boolean
+- `view_count`: Number
+- `created_at`, `updated_at`
 
-### Citizen Updates
+### `aiAgentLogs`
+AI query audit trail.
 
-- `createUpdate`: Create new public update
-- `getRecentUpdates`: Get latest updates (no auth required)
-- `getUpdatesByCategory`: Filter updates by category
-- `updateUpdate`: Edit existing update
-- `deleteUpdate`: Remove update
+**Fields:**
+- `officer_id`: Who queried
+- `query`, `response`
+- `context_used`: Alert IDs provided
+- `model_used`, `tokens_used`
+- `timestamp`, `response_time_ms`
+- `was_blocked`, `block_reason`
 
-### AI Agent
+### `notificationLogs`
+FCM delivery tracking.
 
-- `queryAIAgent`: Query AI with security restrictions
-  - Requires valid session token
-  - Rate limited to 50 queries/hour
-  - AI can only access provided alert data
-  - All queries logged for audit
+**Fields:**
+- `alert_id`, `officer_id`
+- `notification_type`: "fcm_push"
+- `sent_at`, `delivery_status`
+- `fcm_message_id`, `fcm_token_used`
+- `error_message`, `retry_count`
 
-## Security Features
+### `rateLimits`
+AI rate limiting (50/hour per officer).
+
+**Fields:**
+- `officer_id`
+- `hour_timestamp`: Hour bucket
+- `query_count`: Queries made
+
+## API Functions
+
+### HTTP Endpoints
+
+**`receiveAlert`** - POST endpoint for RD
+```
+https://REGION-PROJECT.cloudfunctions.net/receiveAlert
+
+Body:
+{
+  "timestamp_recorded": 1700000000000,
+  "timestamp_sent": 1700000000100,
+  "photo_url": "https://...",
+  "video_url":  "https://...",
+  "rpi_device_id": "RPI_001",
+  "location": "Main Entrance"
+}
+```
+
+### Callable Functions
+
+All callable functions use Firebase SDK from frontend:
+
+```typescript
+import { getFunctions, httpsCallable } from 'firebase/functions';
+
+const functions = getFunctions();
+const getAlerts = httpsCallable(functions, 'getAlerts');
+
+const result = await getAlerts({ status: 'active', limit: 50 });
+```
+
+**Available Functions:**
+- `getAlerts`: Query alerts
+- `updateAlertStatus`: Update alert
+- `getAlertStats`: Statistics
+- `registerDeviceToken`: Register FCM token
+- `removeDeviceToken`: Remove FCM token
+- `queryAI`: AI agent (rate limited, data isolated)
+- `getAILogs`: Fetch AI logs
+- `getUpdates`: Get citizen updates (no auth)
+- `createUpdate`: Create update (admin only)
+- `updateUpdate`, `deleteUpdate`: Manage updates
+- `registerOfficer`: Register new officer (admin only)
+- `setOfficerRole`: Change officer role (admin only)
+- `getOfficerProfile`: Get profile
+- `updateLastLogin`: Update login time
+- `deactivateOfficer`: Deactivate officer (admin only)
+
+## Security
+
+### Firestore Rules
+
+- **Officers** can read all alerts, update status only
+- **Officers** can read own profile only
+- **Admins** can manage everything
+- **Public** can read published citizen updates
+- **AI logs** readable by owner or admin only
+- **System collections** (rateLimits, notificationLogs) managed by Cloud Functions only
 
 ### AI Agent Restrictions
 
-1. **Authentication Required**: Must provide valid session token
-2. **Rate Limiting**: Max 50 queries per hour per officer
-3. **Data Isolation**: AI can ONLY access alerts explicitly provided in `include_alert_ids`
-4. **Query Sanitization**: Removes script injection attempts
-5. **Audit Logging**: All queries logged with timestamp, officer, and context
-6. **No External Access**: AI cannot query external data or make assumptions
+✅ **Implemented:**
+- Must be authenticated officer
+- Rate limited to 50 queries/hour per officer
+- Can ONLY access alerts provided in `alert_ids` parameter
+- Query sanitization (XSS prevention)
+- All queries logged for audit
 
-### Session Management
+## Local Development
 
-- 24-hour session expiration
-- IP address and user agent tracking
-- Manual invalidation support
+### Firebase Emulators
 
-## Integration with Frontend
+```bash
+firebase emulators:start
+```
 
-The dashboards (police and citizen) will integrate with this backend via:
+This starts:
+- Firestore: http://localhost:8080
+- Functions: http://localhost:5001
+- Auth: http://localhost:9099
+- Storage: http://localhost:9199
+- Emulator UI: http://localhost:4000
 
-```typescript
-import { ConvexProvider, useQuery, useMutation, useAction } from "convex/react";
-import { api } from "./convex/_generated/api";
+### Testing Functions
 
-// Example: Query alerts
-const alerts = useQuery(api.alerts.getActiveAlerts);
+```bash
+cd functions
+npm run serve
+```
 
-// Example: Update alert status
-const updateStatus = useMutation(api.alerts.updateAlertStatus);
+### Logs
 
-// Example: Query AI agent
-const queryAI = useAction(api.aiAgent.queryAIAgent);
+```bash
+firebase functions:log
 ```
 
 ## Deployment
 
-1. Deploy to production:
+### First Deployment
+
 ```bash
-npx convex deploy
+firebase deploy
 ```
 
-2. Update environment variables in Convex production dashboard
+### Incremental Deployments
 
-3. Get production URL and update frontend `.env`:
+```bash
+# Only Firestore rules
+firebase deploy --only firestore:rules,firestore:indexes
+
+# Only Functions
+firebase deploy --only functions
+
+# Only Storage rules
+firebase deploy --only storage
+
+# Specific function
+firebase deploy --only functions:receiveAlert
 ```
-VITE_CONVEX_URL=https://your-deployment.convex.cloud
+
+## Environment Variables
+
+Access in Cloud Functions:
+
+```typescript
+import * as functions from 'firebase-functions';
+
+const apiKey = functions.config().openrouter.api_key;
 ```
 
-## Firebase Integration
+Set variables:
 
-### Required Setup
-
-1. Create Firebase project
-2. Enable Cloud Messaging
-3. Download service account JSON
-4. Base64 encode and set as environment variable
-5. Frontend apps need to register FCM tokens via `registerFCMToken`
-
-## OpenRouter Integration
-
-The AI agent uses OpenRouter for LLM access. To connect:
-
-1. Get API key from [openrouter.ai](https://openrouter.ai)
-2. Set `OPENROUTER_API_KEY` in Convex environment
-3. Uncomment actual API call in `aiAgent.ts` `callOpenRouter` function
+```bash
+firebase functions:config:set service.key="value"
+firebase deploy --only functions
+```
 
 ## Monitoring
 
-- Check Convex dashboard for function logs
-- Monitor `ai_agent_logs` table for AI usage
-- Check `notification_logs` for delivery status
-- Use `getAlertStats` for system health metrics
+- **Firebase Console**: https://console.firebase.google.com/
+- **Functions Logs**: Firebase Console → Functions → Logs
+- **Firestore Data**: Firebase Console → Firestore Database
+- **Auth Users**: Firebase Console → Authentication
 
-## License
+## Cost Optimization
 
-Private - CogniSecure Project
+- **Free Tier**: 2 million function invocations/month
+- **Firestore**: 50K reads, 20K writes, 20K deletes per day
+- **Storage**: 5GB, 1GB downloads per day
+- **Monitor usage** in Firebase Console
+
+## Security Best Practices
+
+1. **Never expose API keys** in frontend code (use Firebase SDK)
+2. **Use custom claims** for role-based access
+3. **Test security rules** rigorously
+4. **Monitor logs** for suspicious activity
+5. **Rotate service account keys** regularly
+
+## Integration with Frontend
+
+See [INTEGRATION.md](./INTEGRATION.md) for detailed frontend integration guide.
+
+## Support
+
+- **Firebase Docs**: https://firebase.google.com/docs
+- **OpenRouter Docs**: https://openrouter.ai/docs
+- **Firebase Support**: https://firebase.google.com/support

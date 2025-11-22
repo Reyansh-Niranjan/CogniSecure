@@ -1,0 +1,30 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOfficer() {
+      return isAuthenticated() && 
+             request.auth.token.role in ['officer', 'admin', 'supervisor'];
+    }
+    
+    // Alert media (photos and videos)
+    match /alerts/{deviceId}/{fileName} {
+      // RPI devices can upload (via service account in Cloud Function)
+      // Or authenticated uploads via Cloud Function
+      allow read: if isOfficer();
+      allow write: if false; // Only via Cloud Functions with proper auth
+    }
+    
+    // Temporary uploads
+    match /temp/{userId}/{fileName} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+  }
+}

@@ -1,0 +1,108 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOfficer() {
+      return isAuthenticated() && 
+             request.auth.token.role in ['officer', 'admin', 'supervisor'];
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function isSelf(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Alerts Collection
+    match /alerts/{alertId} {
+      // Officers can read all alerts
+      allow read: if isOfficer();
+      
+      // Only system (via Cloud Function with service account) can create
+      allow create: if false; // Will be done via Cloud Functions
+      
+      // Officers can update status fields only
+      allow update: if isOfficer() && 
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'acknowledged_by', 'acknowledged_at', 
+                                   'resolved_by', 'resolved_at', 'notes']);
+      
+      // Only admins can delete (for cleanup)
+      allow delete: if isAdmin();
+    }
+    
+    // Officers Collection
+    match /officers/{officerId} {
+      // Officers can read their own profile
+      allow read: if isSelf(officerId) || isAdmin();
+      
+      // Only admins can create/update officers
+      allow create, update: if isAdmin();
+      
+      // Can update own FCM tokens
+      allow update: if isSelf(officerId) && 
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['fcm_tokens', 'last_login']);
+      
+      allow delete: if isAdmin();
+    }
+    
+    // Citizen Updates Collection
+    match /citizenUpdates/{updateId} {
+      // Anyone can read published updates
+      allow read: if resource.data.is_published == true || isOfficer();
+      
+      // Only admins can write
+      allow create, update, delete: if isAdmin();
+      
+      // Allow incrementing view count
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['view_count']) &&
+                       request.resource.data.view_count == resource.data.view_count + 1;
+    }
+    
+    // AI Agent Logs Collection
+    match /aiAgentLogs/{logId} {
+      // Officers can read their own logs
+      allow read: if isOfficer() && 
+                     (resource.data.officer_id == request.auth.uid || isAdmin());
+      
+      // Only system can create (via Cloud Functions)
+      allow create: if false;
+      
+      // No updates or deletes
+      allow update, delete: if false;
+    }
+    
+    // Notification Logs Collection
+    match /notificationLogs/{logId} {
+      // Officers can read their own notification logs
+      allow read: if isOfficer() && 
+                     (resource.data.officer_id == request.auth.uid || isAdmin());
+      
+      // Only system can create
+      allow create: if false;
+      
+      // No updates or deletes
+      allow update, delete: if false;
+    }
+    
+    // Rate Limits Collection
+    match /rateLimits/{limitId} {
+      // Officers can read their own rate limits
+      allow read: if isOfficer() && 
+                     resource.data.officer_id == request.auth.uid;
+      
+      // Only system can manage
+      allow create, update, delete: if false;
+    }
+  }
+}

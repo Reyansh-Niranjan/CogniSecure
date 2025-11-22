@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import PasskeyAuth from './PasskeyAuth';
-import FaceScanAuth from './FaceScanAuth';
 
 export default function LoginPage({ onLogin }) {
-  const [authMode, setAuthMode] = useState('passkey'); // 'passkey' or 'facescan'
+  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
   const [isLoading, setIsLoading] = useState(false);
 
   const handleAuthSuccess = (userData) => {
@@ -17,16 +16,16 @@ export default function LoginPage({ onLogin }) {
   return (
     <div className="login-container">
       <div className="login-background"></div>
-      
+
       <div className="login-content animate-fadeIn">
         <div className="login-header">
           <div className="logo-container">
             <div className="shield-icon">
               <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L3 6V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V6L12 2Z" 
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 12L11 14L15 10" 
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 2L3 6V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V6L12 2Z"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M9 12L11 14L15 10"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
           </div>
@@ -36,44 +35,43 @@ export default function LoginPage({ onLogin }) {
 
         <div className="auth-mode-selector">
           <button
-            className={`auth-mode-btn ${authMode === 'passkey' ? 'active' : ''}`}
-            onClick={() => setAuthMode('passkey')}
+            className={`auth-mode-btn ${authMode === 'login' ? 'active' : ''}`}
+            onClick={() => setAuthMode('login')}
             disabled={isLoading}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" strokeWidth="2"/>
-              <path d="M7 11V7a5 5 0 0110 0v4" strokeWidth="2"/>
+              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" strokeWidth="2" />
             </svg>
-            Passkey
+            Login
           </button>
           <button
-            className={`auth-mode-btn ${authMode === 'facescan' ? 'active' : ''}`}
-            onClick={() => setAuthMode('facescan')}
+            className={`auth-mode-btn ${authMode === 'signup' ? 'active' : ''}`}
+            onClick={() => setAuthMode('signup')}
             disabled={isLoading}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-              <path d="M8 14s1.5 2 4 2 4-2 4-2" strokeWidth="2" strokeLinecap="round"/>
-              <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="2" strokeLinecap="round"/>
-              <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" strokeWidth="2" />
+              <circle cx="8.5" cy="7" r="4" strokeWidth="2" />
+              <line x1="20" y1="8" x2="20" y2="14" strokeWidth="2" strokeLinecap="round" />
+              <line x1="23" y1="11" x2="17" y2="11" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            Face Scan
+            Sign Up
           </button>
         </div>
 
         <div className="auth-container glass-card">
-          {authMode === 'passkey' ? (
-            <PasskeyAuth onSuccess={handleAuthSuccess} isLoading={isLoading} />
-          ) : (
-            <FaceScanAuth onSuccess={handleAuthSuccess} isLoading={isLoading} />
-          )}
+          <PasskeyAuth
+            onSuccess={handleAuthSuccess}
+            isLoading={isLoading}
+            mode={authMode}
+          />
         </div>
 
         <div className="security-notice">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-            <line x1="12" y1="16" x2="12" y2="12" strokeWidth="2"/>
-            <line x1="12" y1="8" x2="12.01" y2="8" strokeWidth="2"/>
+            <circle cx="12" cy="12" r="10" strokeWidth="2" />
+            <line x1="12" y1="16" x2="12" y2="12" strokeWidth="2" />
+            <line x1="12" y1="8" x2="12.01" y2="8" strokeWidth="2" />
           </svg>
           <span>This is a secure portal. All access attempts are logged.</span>
         </div>
