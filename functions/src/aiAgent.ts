@@ -4,6 +4,20 @@ import OpenAI from 'openai';
 
 const db = admin.firestore();
 
+// Alert interface definition
+interface Alert {
+    id: string;
+    timestamp_recorded: number | admin.firestore.Timestamp;
+    timestamp_received: number | admin.firestore.Timestamp;
+    delay_ms: number;
+    rpi_device_id: string;
+    location?: string;
+    status: string;
+    photo_url?: string;
+    video_url?: string;
+    notes?: string;
+}
+
 // Initialize OpenRouter client
 const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
@@ -184,9 +198,9 @@ async function buildRestrictedContext(alertIds: string[]): Promise<{
     const alertPromises = alertIds.map((id) => db.collection('alerts').doc(id).get());
     const alertDocs = await Promise.all(alertPromises);
 
-    const alerts = alertDocs
+    const alerts: Alert[] = alertDocs
         .filter((doc) => doc.exists)
-        .map((doc) => ({ id: doc.id, ...doc.data() }));
+        .map((doc) => ({ id: doc.id, ...doc.data() } as Alert));
 
     if (alerts.length === 0) {
         return {
@@ -195,14 +209,22 @@ async function buildRestrictedContext(alertIds: string[]): Promise<{
         };
     }
 
+    // Helper function to convert timestamp to ISO string
+    const toISOString = (timestamp: number | admin.firestore.Timestamp): string => {
+        if (typeof timestamp === 'number') {
+            return new Date(timestamp).toISOString();
+        }
+        return timestamp.toDate().toISOString();
+    };
+
     // Build context string
     const contextText = alerts
         .map((alert, idx) => {
             return `
 Alert ${idx + 1}:
 - Alert ID: ${alert.id}
-- Recorded: ${new Date(alert.timestamp_recorded).toISOString()}
-- Received: ${new Date(alert.timestamp_received).toISOString()}
+- Recorded: ${toISOString(alert.timestamp_recorded)}
+- Received: ${toISOString(alert.timestamp_received)}
 - Delay: ${alert.delay_ms}ms
 - Device: ${alert.rpi_device_id}
 - Location: ${alert.location || 'Unknown'}

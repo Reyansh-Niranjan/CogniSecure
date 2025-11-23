@@ -106,9 +106,6 @@
     position: relative;
 }
 
-flex-shrink: 0;
-}
-
 .nav-label-text {
     flex: 1;
     text-align: left;
