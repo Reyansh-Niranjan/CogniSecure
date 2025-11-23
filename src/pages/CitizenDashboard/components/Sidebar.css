@@ -1,0 +1,207 @@
+/* ============================================
+   SIDEBAR STYLES
+   ============================================ */
+
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    display: none;
+}
+
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    background: var(--color-bg-primary);
+    border-right: 1px solid var(--color-border-light);
+    display: flex;
+    flex-direction: column;
+    z-index: 999;
+    transition: transform var(--transition-base);
+}
+
+/* ========== Header Section ========== */
+.sidebar-header {
+    padding: var(--space-xl) var(--space-lg);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.logo-icon-wrapper {
+    flex-shrink: 0;
+}
+
+.logo-text-section {
+    flex: 1;
+    min-width: 0;
+}
+
+.logo-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.logo-tagline {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin: var(--space-xs) 0 0;
+    font-weight: var(--font-weight-medium);
+}
+
+/* ========== Navigation ========== */
+.sidebar-nav {
+    flex: 1;
+    padding: var(--space-lg);
+    overflow-y: auto;
+}
+
+.nav-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--space-md);
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-list li {
+    margin-bottom: var(--space-xs);
+}
+
+.nav-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+flex-shrink: 0;
+}
+
+.nav-label-text {
+    flex: 1;
+    text-align: left;
+}
+
+.active-indicator {
+    width: 3px;
+    height: 20px;
+    background: var(--color-accent-blue);
+    border-radius: var(--radius-full);
+    position: absolute;
+    right: 0;
+}
+
+/* ========== Footer / Status Widget ========== */
+.sidebar-footer {
+    padding: var(--space-lg);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.status-widget {
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.status-dot-pulse {
+    width: 8px;
+    height: 8px;
+    background: var(--color-alert-success);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--color-alert-success);
+}
+
+.status-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.status-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--font-size-xs);
+}
+
+.status-label {
+    color: var(--color-text-muted);
+}
+
+.status-value {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.status-value.active {
+    color: var(--color-alert-success);
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+    .sidebar-overlay {
+        display: block;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--transition-base);
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .sidebar.open~.sidebar-overlay {
+        opacity: 1;
+        pointer-events: all;
+    }
+}

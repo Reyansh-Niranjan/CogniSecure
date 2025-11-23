@@ -8,7 +8,10 @@
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import AIAssistant from './AIAssistant';
+
+import IncidentsView from './IncidentsView';
+import AnalyticsView from './AnalyticsView';
+import SettingsView from './SettingsView';
 
 /**
  * Dashboard Component
@@ -47,12 +50,32 @@ export default function Dashboard({ user, onTriggerNotify }) {
     );
 
     const incidentsUnsub = onSnapshot(q, (snapshot) => {
-      const incidents = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        // Convert Firestore Timestamp to Date string if needed
-        timestamp: doc.data().timestamp?.toDate().toISOString() || new Date().toISOString()
-      }));
+      const incidents = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let timestamp = new Date().toISOString();
+
+        if (data.timestamp) {
+          try {
+            // Handle Firestore Timestamp
+            if (data.timestamp && typeof data.timestamp.toDate === 'function') {
+              timestamp = data.timestamp.toDate().toISOString();
+            }
+            // Handle String or Date object
+            else if (data.timestamp) {
+              timestamp = new Date(data.timestamp).toISOString();
+            }
+          } catch (e) {
+            console.warn('Error parsing timestamp:', e);
+            timestamp = new Date().toISOString();
+          }
+        }
+
+        return {
+          id: doc.id,
+          ...data,
+          timestamp
+        };
+      });
       setRecentIncidents(incidents);
     });
 
@@ -123,100 +146,107 @@ export default function Dashboard({ user, onTriggerNotify }) {
 
       {/* Main Content Area */}
       <div className="dashboard-content">
-        {/* Stats Cards Grid */}
-        <div className="stats-grid">
-          <div className="stat-card glass-card">
-            <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" />
-              </svg>
-            </div>
-            <div className="stat-content">
-              <span className="stat-label">Active Alerts</span>
-              <span className="stat-value text-danger">{stats.activeAlerts}</span>
-            </div>
-          </div>
-
-          <div className="stat-card glass-card">
-            <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="2" />
-              </svg>
-            </div>
-            <div className="stat-content">
-              <span className="stat-label">Today's Incidents</span>
-              <span className="stat-value text-primary">{stats.todayIncidents}</span>
-            </div>
-          </div>
-
-          <div className="stat-card glass-card">
-            <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" />
-              </svg>
-            </div>
-            <div className="stat-content">
-              <span className="stat-label">Pending Reviews</span>
-              <span className="stat-value text-warning">{stats.pendingReviews}</span>
-            </div>
-          </div>
-
-          <div className="stat-card glass-card">
-            <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" />
-              </svg>
-            </div>
-            <div className="stat-content">
-              <span className="stat-label">Avg Response Time</span>
-              <span className="stat-value text-success">{stats.responseTime}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Incidents List */}
-        <div className="incidents-section glass-card">
-          <div className="section-header">
-            <h3>Recent Incidents</h3>
-            <button className="btn btn-ghost btn-sm">View All</button>
-          </div>
-
-          <div className="incidents-list">
-            {recentIncidents.map(incident => (
-              <div key={incident.id} className="incident-item">
-                <div className="incident-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" strokeWidth="2" />
+        {activeView === 'overview' && (
+          <>
+            {/* Stats Cards Grid */}
+            <div className="stats-grid">
+              <div className="stat-card glass-card">
+                <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" />
                   </svg>
                 </div>
-                <div className="incident-details">
-                  <div className="incident-header">
-                    <span className="incident-type font-semibold">{incident.type}</span>
-                    <span className={`badge badge-${incident.status === 'resolved' ? 'success' : incident.status === 'reviewing' ? 'warning' : 'primary'}`}>
-                      {incident.status}
-                    </span>
-                  </div>
-                  <div className="incident-meta">
-                    <span>{incident.location}</span>
-                    <span>•</span>
-                    <span>{new Date(incident.timestamp).toLocaleTimeString()}</span>
-                    <span>•</span>
-                    <span className="text-muted">Delay: {incident.delay}</span>
-                  </div>
+                <div className="stat-content">
+                  <span className="stat-label">Active Alerts</span>
+                  <span className="stat-value text-danger">{stats.activeAlerts}</span>
                 </div>
-                <button className="btn btn-ghost btn-sm">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </button>
               </div>
-            ))}
-          </div>
-        </div>
+
+              <div className="stat-card glass-card">
+                <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="2" />
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <span className="stat-label">Today's Incidents</span>
+                  <span className="stat-value text-primary">{stats.todayIncidents}</span>
+                </div>
+              </div>
+
+              <div className="stat-card glass-card">
+                <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" />
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <span className="stat-label">Pending Reviews</span>
+                  <span className="stat-value text-warning">{stats.pendingReviews}</span>
+                </div>
+              </div>
+
+              <div className="stat-card glass-card">
+                <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" />
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <span className="stat-label">Avg Response Time</span>
+                  <span className="stat-value text-success">{stats.responseTime}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Incidents List */}
+            <div className="incidents-section glass-card">
+              <div className="section-header">
+                <h3>Recent Incidents</h3>
+                <button className="btn btn-ghost btn-sm">View All</button>
+              </div>
+
+              <div className="incidents-list">
+                {recentIncidents.map(incident => (
+                  <div key={incident.id} className="incident-item">
+                    <div className="incident-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" strokeWidth="2" />
+                      </svg>
+                    </div>
+                    <div className="incident-details">
+                      <div className="incident-header">
+                        <span className="incident-type font-semibold">{incident.type}</span>
+                        <span className={`badge badge-${incident.status === 'resolved' ? 'success' : incident.status === 'reviewing' ? 'warning' : 'primary'}`}>
+                          {incident.status}
+                        </span>
+                      </div>
+                      <div className="incident-meta">
+                        <span>{incident.location}</span>
+                        <span>•</span>
+                        <span>{new Date(incident.timestamp).toLocaleTimeString()}</span>
+                        <span>•</span>
+                        <span className="text-muted">Delay: {incident.delay}</span>
+                      </div>
+                    </div>
+                    <button className="btn btn-ghost btn-sm">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeView === 'incidents' && <IncidentsView />}
+        {activeView === 'analytics' && <AnalyticsView />}
+        {activeView === 'settings' && <SettingsView user={user} />}
       </div>
 
-      {/* AI Assistant Floating Component */}
-      <AIAssistant />
+
 
       {/* Component-scoped styles */}
       <style>{`

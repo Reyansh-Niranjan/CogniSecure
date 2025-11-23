@@ -15,7 +15,7 @@ import { useState, useEffect } from 'react';
  * @param {object} alert - The alert object containing incident details
  * @param {function} onDismiss - Function to dismiss the alert
  */
-export default function NotifyMode({ alert, onDismiss }) {
+export default function NotifyMode({ alert, onDismiss, onAIAction }) {
   // State for tracking time elapsed since alert received
   const [timeElapsed, setTimeElapsed] = useState(0);
 
@@ -148,32 +148,24 @@ export default function NotifyMode({ alert, onDismiss }) {
             <h3>Quick Actions</h3>
 
             <div className="action-buttons">
-              <button className="action-btn dispatch-btn">
+              <button
+                className="action-btn dispatch-btn"
+                onClick={() => onAIAction('generate_fir')}
+              >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" strokeWidth="2" />
+                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="2" />
                 </svg>
-                <span>Dispatch Unit</span>
+                <span>Make a FIR</span>
               </button>
 
-              <button className="action-btn investigate-btn">
+              <button
+                className="action-btn investigate-btn"
+                onClick={() => onAIAction('summarize')}
+              >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2" />
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" strokeWidth="2" strokeLinecap="round" />
                 </svg>
-                <span>Mark Investigating</span>
-              </button>
-
-              <button className="action-btn escalate-btn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" />
-                </svg>
-                <span>Escalate Priority</span>
-              </button>
-
-              <button className="action-btn false-alarm-btn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" />
-                </svg>
-                <span>False Alarm</span>
+                <span>Give me a Summary</span>
               </button>
             </div>
 

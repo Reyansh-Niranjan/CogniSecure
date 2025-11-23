@@ -2,29 +2,37 @@
 // AI ASSISTANT COMPONENT
 // ============================================
 // This component provides an interactive AI chat interface for officers
-// It simulates AI responses and enforces security restrictions
+// It uses OpenRouter API for AI responses with vision capabilities
 // ============================================
 
 import { useState, useRef, useEffect } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../../firebase';
+
+// OpenRouter API Key (Provided by user)
+const API_KEY = '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';
 
 /**
  * AIAssistant Component
  * Floating chat interface for AI assistance
  * 
- * Features:
- * - Chat interface with history
- * - Simulated AI responses
- * - Security restriction simulation
- * - Suggested commands
+ * Props:
+ * @param {boolean} isOpen - Controlled open state (optional)
+ * @param {function} onClose - Callback to close (optional)
+ * @param {object} context - Context data (e.g., current incident with media)
  */
-export default function AIAssistant() {
-  // State for chat visibility
-  const [isOpen, setIsOpen] = useState(false);
+export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context }) {
+  // State for chat visibility (internal if not controlled)
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isVisible = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
 
   // Chat history state
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    {
+      id: 0,
+      type: 'assistant',
+      text: 'Hello Officer. I am ready to assist you. I can analyze incident footage, draft reports, and summarize events.',
+      timestamp: new Date()
+    }
+  ]);
 
   // Input state
   const [input, setInput] = useState('');
@@ -39,7 +47,48 @@ export default function AIAssistant() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isVisible]);
+
+  // Handle external context triggers (e.g., "Make a FIR")
+  useEffect(() => {
+    if (context && context.action && isVisible) {
+      handleContextAction(context);
+    }
+  }, [context, isVisible]);
+
+  const handleContextAction = async (ctx) => {
+    const { action, data } = ctx;
+    let prompt = '';
+
+    if (action === 'generate_fir') {
+      prompt = `Draft a First Information Report (FIR) for this incident. 
+      Details:
+      - Type: ${data.type}
+      - Location: ${data.location}
+      - Time: ${data.timestamp}
+      - Description: ${data.description}
+      
+      Please analyze the visual evidence if provided and include technical details.`;
+    } else if (action === 'summarize') {
+      prompt = `Provide a concise summary of this incident for the shift briefing. Focus on key events and immediate actions required.`;
+    }
+
+    if (prompt) {
+      // Add user message representing the action
+      const userMsg = {
+        id: Date.now(),
+        type: 'user',
+        text: action === 'generate_fir' ? 'Draft FIR for this incident' : 'Summarize this incident',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMsg]);
+
+      // Trigger AI call
+      // Use snapshotUrl for vision analysis as video URLs (mp4) are not supported by image_url
+      const imageUrl = data.snapshotUrl || (data.mediaUrl && data.mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? data.mediaUrl : null);
+      await callOpenRouter(prompt, imageUrl);
+    }
+  };
 
   // Pre-defined commands for quick access
   const suggestedCommands = [
@@ -49,13 +98,80 @@ export default function AIAssistant() {
     'Find similar cases'
   ];
 
+  // Call OpenRouter API
+  const callOpenRouter = async (prompt, imageUrl = null) => {
+    setIsTyping(true);
+    try {
+      const content = [{ type: 'text', text: prompt }];
+
+      // Add image if available (Vision capability)
+      if (imageUrl) {
+        content.push({
+          type: 'image_url',
+          image_url: { url: imageUrl }
+        });
+      }
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://cognisecure.local', // Required by OpenRouter
+          'X-Title': 'CogniSecure Police Dashboard'
+        },
+        body: JSON.stringify({
+          model: 'meta-llama/Meta-Llama-3.1-8B-Instruct', // Updated to a valid OpenRouter model
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an advanced AI assistant for law enforcement. You are precise, formal, and focused on public safety. You can analyze images to detect threats, weapons, and suspicious behavior.'
+            },
+            ...messages.filter(m => m.id !== 0).map(m => ({
+              role: m.type === 'user' ? 'user' : 'assistant',
+              content: m.text
+            })),
+            { role: 'user', content: content }
+          ]
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.choices && data.choices.length > 0) {
+        const aiText = data.choices[0].message.content;
+        const aiMessage = {
+          id: Date.now() + 1,
+          type: 'assistant',
+          text: aiText,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      } else {
+        throw new Error('No response from AI');
+      }
+
+    } catch (error) {
+      console.error('AI API Error:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: 'assistant',
+        text: "Connection Error: Unable to reach AI services. Please check your internet connection.",
+        timestamp: new Date(),
+        isError: true
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   // Handle sending a message
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    // Add user message
     const userMessage = {
-      id: messages.length + 1,
+      id: Date.now(),
       type: 'user',
       text: input,
       timestamp: new Date()
@@ -63,35 +179,8 @@ export default function AIAssistant() {
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setIsTyping(true);
 
-    try {
-      // Call Firebase Cloud Function for AI response
-      const aiAgentFn = httpsCallable(functions, 'aiAgent');
-      const result = await aiAgentFn({ query: input });
-
-      const aiMessage = {
-        id: messages.length + 2,
-        type: 'assistant',
-        text: result.data.response || "I'm sorry, I couldn't process that request.",
-        timestamp: new Date(),
-        restricted: result.data.restricted || false
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('AI Agent Error:', error);
-      const errorMessage = {
-        id: messages.length + 2,
-        type: 'assistant',
-        text: "System Error: Unable to connect to AI services.",
-        timestamp: new Date(),
-        restricted: false
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsTyping(false);
-    }
+    await callOpenRouter(input);
   };
 
   const handleKeyPress = (e) => {
@@ -101,24 +190,34 @@ export default function AIAssistant() {
     }
   };
 
+  const toggleOpen = () => {
+    if (onClose && isVisible) {
+      onClose();
+    } else if (controlledIsOpen !== undefined) {
+      // If controlled but no onClose (shouldn't happen), do nothing or warn
+    } else {
+      setInternalIsOpen(!internalIsOpen);
+    }
+  };
+
   return (
     <>
       {/* Floating Toggle Button */}
       <button
         className="ai-assistant-toggle"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleOpen}
         aria-label="Toggle AI Assistant"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeWidth="2" strokeLinecap="round" />
         </svg>
-        {!isOpen && messages.some(m => !m.read && m.type === 'assistant') && (
+        {!isVisible && messages.some(m => !m.read && m.type === 'assistant') && (
           <span className="notification-dot"></span>
         )}
       </button>
 
       {/* Chat Interface Window */}
-      {isOpen && (
+      {isVisible && (
         <div className="ai-assistant animate-slideInRight">
           {/* Header */}
           <div className="ai-header">
@@ -136,7 +235,7 @@ export default function AIAssistant() {
                 </span>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="close-btn">
+            <button onClick={toggleOpen} className="close-btn">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" />
               </svg>
@@ -148,7 +247,7 @@ export default function AIAssistant() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2" />
             </svg>
-            <span>Security Restrictions Active</span>
+            <span>Secure Connection • Vision Enabled</span>
           </div>
 
           {/* Messages Area */}
@@ -163,15 +262,7 @@ export default function AIAssistant() {
                   </div>
                 )}
                 <div className="message-content">
-                  <p>{message.text}</p>
-                  {message.restricted && (
-                    <span className="badge badge-warning">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2" />
-                      </svg>
-                      Restricted Access
-                    </span>
-                  )}
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{message.text}</p>
                   <span className="message-time">
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -214,7 +305,7 @@ export default function AIAssistant() {
           <div className="ai-input-container">
             <textarea
               className="ai-input"
-              placeholder="Ask me anything about the incidents..."
+              placeholder="Ask me anything..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -251,7 +342,7 @@ export default function AIAssistant() {
           justify-content: center;
           box-shadow: var(--glow-primary), var(--shadow-xl);
           transition: all var(--transition-base);
-          z-index: var(--z-modal);
+          z-index: 9999; /* Force high z-index */
         }
 
         .ai-assistant-toggle:hover {
@@ -284,7 +375,7 @@ export default function AIAssistant() {
           box-shadow: var(--shadow-xl);
           display: flex;
           flex-direction: column;
-          z-index: var(--z-modal);
+          z-index: 9999; /* Force high z-index */
           overflow: hidden;
         }
 
@@ -360,9 +451,9 @@ export default function AIAssistant() {
           align-items: center;
           gap: var(--space-sm);
           padding: var(--space-sm) var(--space-lg);
-          background: rgba(245, 158, 11, 0.1);
-          border-bottom: 1px solid var(--color-warning);
-          color: var(--color-warning);
+          background: rgba(16, 185, 129, 0.1);
+          border-bottom: 1px solid var(--color-success);
+          color: var(--color-success);
           font-size: 0.75rem;
           font-weight: 600;
         }
@@ -546,7 +637,6 @@ export default function AIAssistant() {
         .send-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
-          
         }
 
         @media (max-width: 768px) {

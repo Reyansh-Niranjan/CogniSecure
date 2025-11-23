@@ -1,0 +1,33 @@
+/* ============================================
+   EMPTY STATE STYLES
+   ============================================ */
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3xl) var(--space-xl);
+    text-align: center;
+    min-height: 400px;
+}
+
+.empty-state-icon {
+    color: var(--color-border-medium);
+    margin-bottom: var(--space-xl);
+    animation: fadeIn 0.5s ease-out;
+}
+
+.empty-state-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-md);
+}
+
+.empty-state-description {
+    font-size: var(--font-size-base);
+    color: var(--color-text-muted);
+    max-width: 400px;
+    margin: 0;
+}

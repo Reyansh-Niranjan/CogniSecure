@@ -104,5 +104,60 @@ service cloud.firestore {
       // Only system can manage
       allow create, update, delete: if false;
     }
+    
+    // ============================================
+    // NEW COLLECTIONS FOR SIDEBAR FEATURES
+    // ============================================
+    
+    // Incidents Collection
+    match /incidents/{incidentId} {
+      // Officers can read all incidents
+      allow read: if true; // Open for development, restrict in production
+      
+      // Allow writes for initialization script (TEMPORARY - restrict in production)
+      allow create, update: if true;
+      
+      // Only admins can delete
+      allow delete: if isAdmin();
+    }
+    
+    // Analytics Collection
+    match /analytics/{docId} {
+      // Anyone can read analytics (for dashboard)
+      allow read: if true;
+      
+      // Allow writes for initialization (TEMPORARY - restrict in production)
+      allow create, update: if true;
+      
+      // Only admins can delete
+      allow delete: if isAdmin();
+    }
+    
+    // Stats Collection (Daily statistics)
+    match /stats/{docId} {
+      // Anyone can read stats
+      allow read: if true;
+      
+      // Allow writes for initialization (TEMPORARY - restrict in production)
+      allow create, update: if true;
+      
+      // Only admins can delete
+      allow delete: if isAdmin();
+    }
+    
+    // Officer Settings (nested under officers collection)
+    match /officers/{officerId}/settings/{settingId} {
+      // Officers can read their own settings
+      allow read: if isSelf(officerId) || isAdmin();
+      
+      // Officers can update their own settings
+      allow update: if isSelf(officerId);
+      
+      // Allow writes for initialization (TEMPORARY)
+      allow create: if true;
+      
+      // Only admins can delete
+      allow delete: if isAdmin();
+    }
   }
 }

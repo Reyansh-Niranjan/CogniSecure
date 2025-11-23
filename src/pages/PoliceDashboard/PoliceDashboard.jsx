@@ -6,10 +6,13 @@
 // ============================================
 
 import React, { useState, useEffect } from 'react';
+import { collection, query, where, orderBy, limit, onSnapshot, addDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 import LoginPage from './components/LoginPage';
 import Navbar from './components/Navbar';
 import Dashboard from './components/Dashboard';
 import NotifyMode from './components/NotifyMode';
+import AIAssistant from './components/AIAssistant';
 import './PoliceDashboard.css';
 
 // Firebase imports (commented out until fully configured)
@@ -52,6 +55,36 @@ const PoliceDashboard = () => {
         // Simulate loading check
         setTimeout(() => setLoading(false), 500);
     }, []);
+    // Effect to listen for URGENT ALERTS
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        // Listen for active high-priority incidents
+        // Note: Simplified query to avoid needing a composite index during development
+        const q = query(
+            collection(db, 'incidents'),
+            where('priority', '==', 'high'),
+            where('status', '==', 'active')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            if (!snapshot.empty) {
+                // Manually sort by timestamp desc to get the latest
+                const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                alerts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                const alertData = alerts[0];
+
+                // Only trigger if it's a new alert (or we haven't seen it yet)
+                if (!currentAlert || currentAlert.id !== alertData.id) {
+                    setCurrentAlert(alertData);
+                    setNotifyMode(true);
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, [isAuthenticated, currentAlert]);
 
     // Handle Login Success
     const handleLogin = (userData) => {
@@ -66,23 +99,48 @@ const PoliceDashboard = () => {
         setUser(null);
     };
 
-    // Handle Triggering Urgent Alert (Demo/Real-time)
-    const handleTriggerNotify = () => {
-        setCurrentAlert({
-            id: 'alert-' + Date.now(),
-            type: 'Weapon Detected',
-            location: 'Sector 4, Main Entrance',
-            timestamp: new Date().toISOString(),
-            recordedAt: new Date().toISOString(),
-            description: 'AI surveillance system detected a potential weapon in the main entrance area. Immediate verification required.',
-            delay: '0.5s'
-        });
-        setNotifyMode(true);
+    // AI Assistant State
+    const [aiOpen, setAiOpen] = useState(false);
+    const [aiContext, setAiContext] = useState(null);
+
+    // Handle AI Actions from NotifyMode
+    const handleAIAction = (action) => {
+        if (currentAlert) {
+            setAiContext({
+                action,
+                data: currentAlert
+            });
+            setAiOpen(true);
+        }
+    };
+
+    // Handle Triggering Urgent Alert (Writes to DB)
+    const handleTriggerNotify = async () => {
+        try {
+            await addDoc(collection(db, 'incidents'), {
+                type: 'Weapon Detected',
+                status: 'active',
+                priority: 'high',
+                location: 'Sector 4, Main Entrance',
+                timestamp: new Date().toISOString(), // Use ISO string for consistency
+                recordedAt: new Date().toISOString(),
+                description: 'AI surveillance system detected a potential weapon in the main entrance area. Immediate verification required.',
+                delay: '0.5s',
+                mediaUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                snapshotUrl: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80'
+            });
+            console.log('Test alert triggered in database');
+        } catch (error) {
+            console.error('Error triggering test alert:', error);
+            alert('Failed to trigger test alert. Check console.');
+        }
     };
 
     // Handle Dismissing Alert
     const handleDismissNotify = () => {
         setNotifyMode(false);
+        // Optional: Update alert status to 'reviewing' in DB
+        // await updateDoc(doc(db, 'incidents', currentAlert.id), { status: 'reviewing' });
         setCurrentAlert(null);
     };
 
@@ -117,8 +175,15 @@ const PoliceDashboard = () => {
                         <NotifyMode
                             alert={currentAlert}
                             onDismiss={handleDismissNotify}
+                            onAIAction={handleAIAction}
                         />
                     )}
+
+                    <AIAssistant
+                        isOpen={aiOpen}
+                        onClose={() => setAiOpen(false)}
+                        context={aiContext}
+                    />
                 </>
             )}
         </div>

@@ -1,9 +1,6 @@
 // ============================================
 // UPDATE CARD COMPONENT - CITIZEN DASHBOARD
 // ============================================
-// This component displays a single update/alert card in the feed
-// It handles different types of updates (crime, database, website) with distinct styling
-// ============================================
 
 import React from 'react';
 import './UpdateCard.css';
@@ -13,7 +10,7 @@ import './UpdateCard.css';
  * Renders an individual update card with category-specific styling
  * 
  * Props:
- * @param {string} type - Category of update ('crime', 'database', 'website')
+ * @param {string} type - Category of update ('crime_alert', 'database', 'website')
  * @param {string} title - Headline of the update
  * @param {string} description - Full text content of the update
  * @param {Date|string} timestamp - When the update was posted
@@ -21,37 +18,29 @@ import './UpdateCard.css';
  */
 const UpdateCard = ({ type, title, description, timestamp, priority = 'medium' }) => {
 
-    // Helper function to get styling configuration based on update type
+    // Helper function to get category configuration
     const getCategoryConfig = (type) => {
         const configs = {
-            // Crime alerts - Red/Danger theme
-            crime: {
+            crime_alert: {
                 label: 'Crime Alert',
-                gradient: 'var(--gradient-danger)',
-                color: 'var(--color-accent-danger)'
+                className: 'crime'
             },
-            // Database updates - Blue/Primary theme
             database: {
                 label: 'Database Update',
-                gradient: 'var(--gradient-primary)',
-                color: 'var(--color-accent-primary)'
+                className: 'database'
             },
-            // Website announcements - Green/Success theme
             website: {
                 label: 'Website Update',
-                gradient: 'var(--gradient-success)',
-                color: 'var(--color-accent-success)'
+                className: 'website'
             }
         };
-        // Default to database theme if type is unknown
         return configs[type] || configs.database;
     };
 
     const config = getCategoryConfig(type);
 
-    // Format timestamp to relative time (e.g., "5m ago") or date string
+    // Format timestamp to relative time
     const formatTimestamp = (timestamp) => {
-        // Handle both Date objects and Firestore timestamps
         const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
         const now = new Date();
         const diffInMinutes = Math.floor((now - date) / 60000);
@@ -64,24 +53,21 @@ const UpdateCard = ({ type, title, description, timestamp, priority = 'medium' }
 
     return (
         <div className={`update-card priority-${priority}`}>
-            {/* Card Header: Category Badge and Timestamp */}
+            {/* Card Header */}
             <div className="card-header">
-                <span className="category-badge" style={{
-                    background: config.gradient,
-                    boxShadow: `0 4px 12px ${config.color}40`
-                }}>
+                <span className={`category-badge ${config.className}`}>
                     {config.label}
                 </span>
                 <span className="timestamp">{formatTimestamp(timestamp)}</span>
             </div>
 
-            {/* Card Body: Title and Description */}
+            {/* Card Body */}
             <div className="card-content">
                 <h3 className="card-title">{title}</h3>
                 <p className="card-description">{description}</p>
             </div>
 
-            {/* High Priority Indicator - Only shown for urgent updates */}
+            {/* High Priority Indicator */}
             {priority === 'high' && (
                 <div className="priority-indicator">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

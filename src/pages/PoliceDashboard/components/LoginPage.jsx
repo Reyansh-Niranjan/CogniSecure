@@ -8,6 +8,8 @@
 import { useState } from 'react';
 import PasskeyAuth from './PasskeyAuth';
 import FaceScanAuth from './FaceScanAuth'; // Import FaceScanAuth component
+const TEST_ADMIN = { id: 'admin', name: 'Test Admin' };
+
 
 /**
  * LoginPage Component
@@ -17,120 +19,125 @@ import FaceScanAuth from './FaceScanAuth'; // Import FaceScanAuth component
  * @param {function} onLogin - Callback when user successfully logs in
  */
 export default function LoginPage({ onLogin }) {
-    // State for authentication mode: 'login' or 'signup'
-    const [authMode, setAuthMode] = useState('login');
+  // State for authentication mode: 'login' or 'signup'
+  const [authMode, setAuthMode] = useState('login');
 
-    // State for loading status
-    const [isLoading, setIsLoading] = useState(false);
+  // State for loading status
+  const [isLoading, setIsLoading] = useState(false);
 
-    // State for selected method: 'passkey' or 'facescan'
-    const [method, setMethod] = useState('passkey');
+  // State for selected method: 'passkey' or 'facescan'
+  const [method, setMethod] = useState('passkey');
 
-    // Handle successful authentication from child components
-    const handleAuthSuccess = (userData) => {
-        setIsLoading(true);
-        // Simulate network delay for smooth transition
-        setTimeout(() => {
-            onLogin(userData);
-        }, 1000);
-    };
+  // Handle successful authentication from child components
+  const handleAuthSuccess = (userData) => {
+    setIsLoading(true);
+    // Simulate network delay for smooth transition
+    setTimeout(() => {
+      onLogin(userData);
+    }, 1000);
+  };
 
-    return (
-        <div className="login-container">
-            {/* Animated background effect */}
-            <div className="login-background"></div>
+  return (
+    <div className="login-container">
+      {/* Animated background effect */}
+      <div className="login-background"></div>
 
-            <div className="login-content animate-fadeIn">
-                {/* Header Section */}
-                <div className="login-header">
-                    <div className="logo-container">
-                        <div className="shield-icon">
-                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2L3 6V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V6L12 2Z"
-                                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                <path d="M9 12L11 14L15 10"
-                                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                        </div>
-                    </div>
-                    <h1>CogniSecure Police</h1>
-                    <p className="text-muted">Secure Access Portal</p>
-                </div>
-
-                {/* Auth Mode Selector (Login vs Signup) */}
-                <div className="auth-mode-selector">
-                    <button
-                        className={`auth-mode-btn ${authMode === 'login' ? 'active' : ''}`}
-                        onClick={() => setAuthMode('login')}
-                        disabled={isLoading}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" strokeWidth="2" />
-                        </svg>
-                        Login
-                    </button>
-                    <button
-                        className={`auth-mode-btn ${authMode === 'signup' ? 'active' : ''}`}
-                        onClick={() => setAuthMode('signup')}
-                        disabled={isLoading}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" strokeWidth="2" />
-                            <circle cx="8.5" cy="7" r="4" strokeWidth="2" />
-                            <line x1="20" y1="8" x2="20" y2="14" strokeWidth="2" strokeLinecap="round" />
-                            <line x1="23" y1="11" x2="17" y2="11" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                        Sign Up
-                    </button>
-                </div>
-
-                {/* Method Selector (Passkey vs Face Scan) - Only for Login */}
-                {authMode === 'login' && (
-                    <div className="method-selector">
-                        <button
-                            className={`method-btn ${method === 'passkey' ? 'active' : ''}`}
-                            onClick={() => setMethod('passkey')}
-                        >
-                            Passkey / ID
-                        </button>
-                        <button
-                            className={`method-btn ${method === 'facescan' ? 'active' : ''}`}
-                            onClick={() => setMethod('facescan')}
-                        >
-                            Face Scan
-                        </button>
-                    </div>
-                )}
-
-                {/* Main Authentication Container */}
-                <div className="auth-container glass-card">
-                    {method === 'passkey' || authMode === 'signup' ? (
-                        <PasskeyAuth
-                            onSuccess={handleAuthSuccess}
-                            isLoading={isLoading}
-                            mode={authMode}
-                        />
-                    ) : (
-                        <FaceScanAuth
-                            onSuccess={handleAuthSuccess}
-                            isLoading={isLoading}
-                        />
-                    )}
-                </div>
-
-                {/* Security Notice Footer */}
-                <div className="security-notice">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <circle cx="12" cy="12" r="10" strokeWidth="2" />
-                        <line x1="12" y1="16" x2="12" y2="12" strokeWidth="2" />
-                        <line x1="12" y1="8" x2="12.01" y2="8" strokeWidth="2" />
-                    </svg>
-                    <span>This is a secure portal. All access attempts are logged.</span>
-                </div>
+      <div className="login-content animate-fadeIn">
+        {/* Header Section */}
+        <div className="login-header">
+          <div className="logo-container">
+            <div className="shield-icon">
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L3 6V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V6L12 2Z"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M9 12L11 14L15 10"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {process.env.NODE_ENV === 'development' && (
+                <button className="test-admin-btn" onClick={() => onLogin(TEST_ADMIN)} style={{ marginTop: '1rem', padding: '0.5rem 1rem', marginLeft: '-8rem' }}>
+                  Login as Test Admin
+                </button>
+              )}
             </div>
+          </div>
+          <h1>CogniSecure Police</h1>
+          <p className="text-muted">Secure Access Portal</p>
+        </div>
 
-            {/* Component-scoped styles */}
-            <style>{`
+        {/* Auth Mode Selector (Login vs Signup) */}
+        <div className="auth-mode-selector">
+          <button
+            className={`auth-mode-btn ${authMode === 'login' ? 'active' : ''}`}
+            onClick={() => setAuthMode('login')}
+            disabled={isLoading}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" strokeWidth="2" />
+            </svg>
+            Login
+          </button>
+          <button
+            className={`auth-mode-btn ${authMode === 'signup' ? 'active' : ''}`}
+            onClick={() => setAuthMode('signup')}
+            disabled={isLoading}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" strokeWidth="2" />
+              <circle cx="8.5" cy="7" r="4" strokeWidth="2" />
+              <line x1="20" y1="8" x2="20" y2="14" strokeWidth="2" strokeLinecap="round" />
+              <line x1="23" y1="11" x2="17" y2="11" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Sign Up
+          </button>
+        </div>
+
+        {/* Method Selector (Passkey vs Face Scan) - Only for Login */}
+        {authMode === 'login' && (
+          <div className="method-selector">
+            <button
+              className={`method-btn ${method === 'passkey' ? 'active' : ''}`}
+              onClick={() => setMethod('passkey')}
+            >
+              Passkey / ID
+            </button>
+            <button
+              className={`method-btn ${method === 'facescan' ? 'active' : ''}`}
+              onClick={() => setMethod('facescan')}
+            >
+              Face Scan
+            </button>
+          </div>
+        )}
+
+        {/* Main Authentication Container */}
+        <div className="auth-container glass-card">
+          {method === 'passkey' || authMode === 'signup' ? (
+            <PasskeyAuth
+              onSuccess={handleAuthSuccess}
+              isLoading={isLoading}
+              mode={authMode}
+            />
+          ) : (
+            <FaceScanAuth
+              onSuccess={handleAuthSuccess}
+              isLoading={isLoading}
+            />
+          )}
+        </div>
+
+        {/* Security Notice Footer */}
+        <div className="security-notice">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10" strokeWidth="2" />
+            <line x1="12" y1="16" x2="12" y2="12" strokeWidth="2" />
+            <line x1="12" y1="8" x2="12.01" y2="8" strokeWidth="2" />
+          </svg>
+          <span>This is a secure portal. All access attempts are logged.</span>
+        </div>
+      </div>
+
+      {/* Component-scoped styles */}
+      <style>{`
         .login-container {
           min-height: 100vh;
           display: flex;
@@ -282,6 +289,6 @@ export default function LoginPage({ onLogin }) {
           flex-shrink: 0;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

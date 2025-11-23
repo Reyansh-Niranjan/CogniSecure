@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initialize Firebase Database</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #fff;
+        }
+
+        .container {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            color: #3b82f6;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #9ca3af;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: #10b981;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+
+        .info {
+            color: #3b82f6;
+        }
+
+        .warning {
+            color: #f59e0b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔥 Firebase Database Initializer</h1>
+        <p class="subtitle">Click the button below to populate your Firestore database with sample data</p>
+        <!DOCTYPE html>
+        <html lang="en">
+
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Initialize Firebase Database</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    max-width: 800px;
+                    margin: 50px auto;
+                    padding: 20px;
+                    background: #0a0a0a;
+                    color: #fff;
+                }
+
+                .container {
+                    background: #1a1a1a;
+                    border-radius: 12px;
+                    padding: 30px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                }
+
+                h1 {
+                    color: #3b82f6;
+                    margin-bottom: 10px;
+                }
+
+                .subtitle {
+                    color: #9ca3af;
+                    margin-bottom: 30px;
+                }
+
+                button {
+                    background: linear-gradient(135deg, #3b82f6, #2563eb);
+                    color: white;
+                    border: none;
+                    padding: 15px 30px;
+                    font-size: 16px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    width: 100%;
+                    margin: 10px 0;
+                    transition: transform 0.2s;
+                }
+
+                button:hover {
+                    transform: translateY(-2px);
+                }
+
+                button:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                #output {
+                    margin-top: 20px;
+                    padding: 20px;
+                    background: #0a0a0a;
+                    border-radius: 8px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    max-height: 400px;
+                    overflow-y: auto;
+                }
+
+                .success {
+                    color: #10b981;
+                }
+
+                .error {
+                    color: #ef4444;
+                }
+
+                .info {
+                    color: #3b82f6;
+                }
+
+                .warning {
+                    color: #f59e0b;
+                }
+            </style>
+        </head>
+
+        <body>
+            <div class="container">
+                <h1>🔥 Firebase Database Initializer</h1>
+                <p class="subtitle">Click the button below to populate your Firestore database with sample data</p>
+
+                <button id="initBtn" onclick="initializeDatabase()">Initialize Database</button>
+
+                <div id="output"></div>
+            </div>
+
+            <script type="module">
+                import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js';
+                import { getFirestore, collection, doc, setDoc, writeBatch, Timestamp } from 'https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js';
+
+                // Firebase configuration from your .env
+                const firebaseConfig = {
+                    apiKey: "AIzaSyD_--VPLEEf7iaaMfsqOjdQlZAPlasB+r8Y",
+                    authDomain: "cogni-b9d6b.firebaseapp.com",
+                    projectId: "cogni-b9d6b",
+                    storageBucket: "cogni-b9d6b.firebasestorage.app",
+                    messagingSenderId: "708151780872",
+                    appId: "1:708151780872:web:d34a4869a4486707f7a13bd"
+                };
+
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+
+                function log(message, type = 'info') {
+                    const output = document.getElementById('output');
+                    const line = document.createElement('div');
+                    line.className = type;
+                    line.textContent = message;
+                    output.appendChild(line);
+                    output.scrollTop = output.scrollHeight;
+                }
+
+                window.initializeDatabase = async function () {
+                    const btn = document.getElementById('initBtn');
+                    btn.disabled = true;
+                    document.getElementById('output').innerHTML = '';
+
+                    log('🚀 Starting Firebase database initialization...', 'info');
+                    log('='.repeat(50), 'info');
+
+                    try {
+                        // Sample data with rich media
+                        const sampleIncidents = [
+                            {
+                                type: 'Suspicious Activity',
+                                status: 'active',
+                                location: 'Downtown Plaza, Sector 7',
+                                timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 15)),
+                                delay: '2 min',
+                                priority: 'high',
+                                description: 'Multiple individuals loitering near ATM machines. Subject wearing dark hoodie observed tampering with card reader.',
+                                mediaUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', // Sample video
+                                mediaType: 'video',
+                                assignedOfficer: 'Officer Martinez',
+                                snapshotUrl: 'https://images.unsplash.com/photo-1555617766-c94804975da3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                            },
+                            {
+                                type: 'Traffic Violation',
+                                status: 'reviewing',
+                                location: 'Highway 101, Exit 42',
+                                timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 45)),
+                                delay: '5 min',
+                                priority: 'medium',
+                                description: 'Vehicle running red light at intersection. License plate visible in footage.',
+                                mediaUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4',
+                                mediaType: 'video',
+                                assignedOfficer: 'Officer Chen',
+                                snapshotUrl: 'https://images.unsplash.com/photo-1566008885218-90abf9200ddb?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                            },
+                            {
+                                type: 'Theft Report',
+                                status: 'resolved',
+                                location: 'Riverside Mall, Parking Lot B',
+                                timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 120)),
+                                delay: '1 min',
+                                priority: 'high',
+                                description: 'Vehicle break-in reported by security. Suspect fled on foot towards north exit.',
+                                mediaUrl: 'https://images.unsplash.com/photo-1517400508447-f8dd518b86db?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                                mediaType: 'image',
+                                assignedOfficer: 'Officer Johnson',
+                                snapshotUrl: 'https://images.unsplash.com/photo-1517400508447-f8dd518b86db?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                            },
+                            {
+                                type: 'Public Disturbance',
+                                status: 'active',
+                                location: 'Central Park, North Entrance',
+                                timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 30)),
+                                delay: '3 min',
+                                priority: 'medium',
+                                description: 'Loud noise complaint from nearby residents. Group of 5-6 individuals playing loud music.',
+                                mediaUrl: null,
+                                mediaType: null,
+                                assignedOfficer: 'Officer Davis',
+                                snapshotUrl: 'https://images.unsplash.com/photo-1475721027767-4d529c1b611e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                            },
+                            {
+                                type: 'Vandalism',
+                                status: 'reviewing',
+                                location: 'Metro Station, Platform 3',
+                                timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 90)),
+                                delay: '4 min',
+                                priority: 'low',
+                                description: 'Graffiti detected on station walls. Maintenance team notified.',
+                                mediaUrl: 'https://images.unsplash.com/photo-1582139329536-e7284fece509?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                                mediaType: 'image',
+                                assignedOfficer: 'Officer Williams',
+                                snapshotUrl: 'https://images.unsplash.com/photo-1582139329536-e7284fece509?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                            }
+                        ];
+
+                        // Initialize incidents
+                        log('\n📋 Initializing incidents collection...', 'info');
+                        const batch = writeBatch(db);
+                        sampleIncidents.forEach((incident, index) => {
+                            const docRef = doc(db, 'incidents', `inc-00${index + 1}`);
+                            batch.set(docRef, incident);
+                        });
+                        await batch.commit();
+                        log(`✅ Added ${sampleIncidents.length} incidents`, 'success');
+
+                        // Initialize analytics
+                        log('\n📊 Initializing analytics collection...', 'info');
+                        await setDoc(doc(db, 'analytics', 'summary'), {
+                            incidentTrends: [
+                                { date: '2025-11-16', count: 12 },
+                                { date: '2025-11-17', count: 15 },
+                                { date: '2025-11-18', count: 8 },
+                                { date: '2025-11-19', count: 18 },
+                                { date: '2025-11-20', count: 14 },
+                                { date: '2025-11-21', count: 10 },
+                                { date: '2025-11-22', count: 16 },
+                                { date: '2025-11-23', count: 7 }
+                            ],
+                            crimeTypeDistribution: [
+                                { type: 'Theft', count: 45, percentage: 30 },
+                                { type: 'Vandalism', count: 30, percentage: 20 },
+                                { type: 'Traffic Violation', count: 38, percentage: 25 },
+                                { type: 'Suspicious Activity', count: 22, percentage: 15 },
+                                { type: 'Public Disturbance', count: 15, percentage: 10 }
+                            ],
+                            responseTimeStats: {
+                                average: '4.2 min',
+                                fastest: '1.5 min',
+                                slowest: '8.7 min',
+                                median: '3.8 min'
+                            },
+                            geographicData: [
+                                { location: 'Downtown Plaza', incidents: 23 },
+                                { location: 'Riverside Mall', incidents: 18 },
+                                { location: 'Central Park', incidents: 12 },
+                                { location: 'Metro Station', incidents: 15 },
+                                { location: 'Highway 101', incidents: 10 }
+                            ],
+                            hourlyDistribution: [
+                                { hour: '00:00', count: 2 },
+                                { hour: '03:00', count: 1 },
+                                { hour: '06:00', count: 3 },
+                                { hour: '09:00', count: 8 },
+                                { hour: '12:00', count: 12 },
+                                { hour: '15:00', count: 15 },
+                                { hour: '18:00', count: 18 },
+                                { hour: '21:00', count: 10 }
+                            ]
+                        });
+                        log('✅ Analytics data initialized', 'success');
+
+                        // Initialize stats
+                        log('\n📈 Initializing stats collection...', 'info');
+                        await setDoc(doc(db, 'stats', 'daily'), {
+                            activeAlerts: 3,
+                            todayIncidents: 7,
+                            pendingReviews: 2,
+                            responseTime: '4.2 min'
+                        });
+                        log('✅ Daily stats initialized', 'success');
+
+                        // Initialize officer settings
+                        log('\n👮 Initializing officer settings...', 'info');
+                        await setDoc(doc(db, 'officers', 'admin', 'settings', 'preferences'), {
+                            profile: {
+                                name: 'Test Admin',
+                                badgeNumber: 'ADMIN-001',
+                                department: 'Central Division',
+                                rank: 'Administrator',
+                                email: 'admin@cognisecure.local',
+                                phone: '+1 (555) 123-4567'
+                            },
+                            notifications: {
+                                urgentAlerts: true,
+                                emailNotifications: true,
+                                smsNotifications: false,
+                                desktopNotifications: true,
+                                soundEnabled: true
+                            },
+                            display: {
+                                theme: 'dark',
+                                language: 'en',
+                                timezone: 'America/New_York',
+                                dateFormat: 'MM/DD/YYYY',
+                                timeFormat: '12h'
+                            },
+                            security: {
+                                twoFactorEnabled: true,
+                                biometricEnabled: true,
+                                sessionTimeout: 30,
+                                lastPasswordChange: '2025-10-15'
+                            }
+                        });
+                        log('✅ Admin officer settings initialized', 'success');
+
+                        log('\n' + '='.repeat(50), 'info');
+                        log('\n✨ Firebase database initialized successfully!', 'success');
+                        log('\n📝 Collections created:', 'info');
+                        log('   - incidents (5 sample incidents)', 'info');
+                        log('   - analytics/summary (trends and statistics)', 'info');
+                        log('   - stats/daily (dashboard stats)', 'info');
+                        log('   - officers/admin/settings/preferences (admin settings)', 'info');
+                        log('\n🎉 You can now use the Police Dashboard with real Firebase data!', 'success');
+                        log('\n💡 Tip: Refresh your Police Dashboard to see the data', 'warning');
+
+                    } catch (error) {
+                        log('\n❌ Error: ' + error.message, 'error');
+                        log('\nIf you see a permission error, you need to update Firestore rules.', 'warning');
+                        log('See QUICK_FIREBASE_FIX.md for instructions.', 'warning');
+                    } finally {
+                        btn.disabled = false;
+                    }
+                };
+            </script>
+        </body>
+
+        </html>
