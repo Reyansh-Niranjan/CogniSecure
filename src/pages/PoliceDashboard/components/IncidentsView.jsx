@@ -20,10 +20,6 @@ export default function IncidentsView() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        loadIncidents();
-    }, []);
-
     const loadIncidents = async () => {
         setIsLoading(true);
         const { data, isMock } = await getIncidentsWithFallback(db);
@@ -32,6 +28,10 @@ export default function IncidentsView() {
         setIsMockData(isMock);
         setIsLoading(false);
     };
+
+    useEffect(() => {
+        loadIncidents();
+    }, []);
 
     // Filter and search logic
     useEffect(() => {

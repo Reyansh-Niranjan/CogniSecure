@@ -2,7 +2,6 @@
 // UPDATE CARD COMPONENT - CITIZEN DASHBOARD
 // ============================================
 
-import React from 'react';
 import './UpdateCard.css';
 
 /**

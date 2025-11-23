@@ -4,7 +4,6 @@
 // Navigation sidebar with category filters and branding
 // ============================================
 
-import React from 'react';
 import './Sidebar.css';
 
 /**

@@ -6,12 +6,12 @@ const db = admin.firestore();
 /**
  * Create a new citizen update (admin only)
  */
-export const createUpdate = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
+export const createUpdate = functions.https.onCall(async (data, _context) => {
+    if (!_context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
 
-    if (context.auth.token.role !== 'admin') {
+    if (_context.auth.token.role !== 'admin') {
         throw new functions.https.HttpsError('permission-denied', 'Only admins can create updates');
     }
 
@@ -28,7 +28,7 @@ export const createUpdate = functions.https.onCall(async (data, context) => {
             category, // "safety_tip", "crime_alert", "announcement", "statistics"
             priority, // "low", "medium", "high", "critical"
             image_url: image_url || null,
-            created_by: context.auth.uid,
+            created_by: _context.auth.uid,
             created_at: admin.firestore.FieldValue.serverTimestamp(),
             is_published: true,
             view_count: 0,
@@ -47,7 +47,7 @@ export const createUpdate = functions.https.onCall(async (data, context) => {
 /**
  * Get recent updates for citizen dashboard (no auth required)
  */
-export const getUpdates = functions.https.onCall(async (data, context) => {
+export const getUpdates = functions.https.onCall(async (data, _context) => {
     const { category, priority, limit = 20 } = data;
 
     try {
@@ -79,12 +79,12 @@ export const getUpdates = functions.https.onCall(async (data, context) => {
 /**
  * Update existing citizen update
  */
-export const updateUpdate = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
+export const updateUpdate = functions.https.onCall(async (data, _context) => {
+    if (!_context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
 
-    if (context.auth.token.role !== 'admin') {
+    if (_context.auth.token.role !== 'admin') {
         throw new functions.https.HttpsError('permission-denied', 'Only admins can update');
     }
 
@@ -117,12 +117,12 @@ export const updateUpdate = functions.https.onCall(async (data, context) => {
 /**
  * Delete citizen update
  */
-export const deleteUpdate = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
+export const deleteUpdate = functions.https.onCall(async (data, _context) => {
+    if (!_context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
 
-    if (context.auth.token.role !== 'admin') {
+    if (_context.auth.token.role !== 'admin') {
         throw new functions.https.HttpsError('permission-denied', 'Only admins can delete');
     }
 
@@ -144,7 +144,7 @@ export const deleteUpdate = functions.https.onCall(async (data, context) => {
 /**
  * Increment view count
  */
-export const incrementViewCount = functions.https.onCall(async (data, context) => {
+export const incrementViewCount = functions.https.onCall(async (data, _context) => {
     const { update_id } = data;
 
     if (!update_id) {

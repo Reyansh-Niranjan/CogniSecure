@@ -4,7 +4,7 @@
 // Officer profile and preferences management
 // ============================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { db } from '../../../firebase';
 import { getUserSettingsWithFallback } from '../utils/mockData';
 
@@ -18,18 +18,18 @@ export default function SettingsView({ user }) {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('profile');
 
-    useEffect(() => {
-        loadSettings();
-    }, [user]);
-
-    const loadSettings = async () => {
+    const loadSettings = useCallback(async () => {
         setIsLoading(true);
         const userId = user?.id || 'admin';
         const { data, isMock } = await getUserSettingsWithFallback(db, userId);
         setSettings(data);
         setIsMockData(isMock);
         setIsLoading(false);
-    };
+    }, [user, setSettings, setIsMockData, setIsLoading]);
+
+    useEffect(() => {
+        loadSettings();
+    }, [user, loadSettings]);
 
     const handleToggle = (category, key) => {
         setSettings(prev => ({

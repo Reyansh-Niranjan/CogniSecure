@@ -17,10 +17,6 @@ export default function AnalyticsView() {
     const [isMockData, setIsMockData] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        loadAnalytics();
-    }, []);
-
     const loadAnalytics = async () => {
         setIsLoading(true);
         const { data, isMock } = await getAnalyticsWithFallback(db);
@@ -28,6 +24,10 @@ export default function AnalyticsView() {
         setIsMockData(isMock);
         setIsLoading(false);
     };
+
+    useEffect(() => {
+        loadAnalytics();
+    }, []);
 
     if (isLoading) {
         return (

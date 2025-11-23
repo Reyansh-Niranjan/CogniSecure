@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 
 const db = admin.firestore();
 
+<<<<<<< HEAD
 // Alert interface definition
 interface Alert {
     id: string;
@@ -16,6 +17,19 @@ interface Alert {
     photo_url?: string;
     video_url?: string;
     notes?: string;
+=======
+interface Alert {
+  id: string;
+  timestamp_recorded: number;
+  timestamp_received: number;
+  delay_ms: number;
+  rpi_device_id: string;
+  location?: string;
+  status: string;
+  photo_url?: string;
+  video_url?: string;
+  notes?: string;
+>>>>>>> 911115b0744b4cd7b1facc9043f20ff37668f2a9
 }
 
 // Initialize OpenRouter client

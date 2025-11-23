@@ -4,7 +4,6 @@
 // Top header bar with title and system status
 // ============================================
 
-import React from 'react';
 import ThemeToggle from './ThemeToggle';
 import './Header.css';
 

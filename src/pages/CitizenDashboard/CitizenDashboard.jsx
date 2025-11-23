@@ -2,7 +2,7 @@
 // CITIZEN DASHBOARD PAGE - REDESIGNED
 // ============================================
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
 import { Header } from './components/Header';
