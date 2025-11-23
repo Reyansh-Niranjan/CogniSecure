@@ -25,7 +25,7 @@ The Citizen Dashboard is the public-facing component of the CogniSecure platform
 
 ## Integration Details
 
-The dashboard connects to Firebase Firestore to retrieve the `updates` collection. It uses a real-time listener to ensure citizens always see the latest information without refreshing.
+The dashboard connects to Firebase Realtime Database to retrieve the `updates` node. It uses a real-time listener to ensure citizens always see the latest information without refreshing.
 
 ```javascript
 // Example Data Structure
@@ -34,7 +34,7 @@ The dashboard connects to Firebase Firestore to retrieve the `updates` collectio
   type: "crime",
   title: "Suspicious Activity Reported",
   description: "Reports of suspicious vehicle in Sector 7.",
-  timestamp: "2023-10-27T10:30:00Z",
+  timestamp: 1698402600000, // Milliseconds since epoch
   priority: "high"
 }
 ```

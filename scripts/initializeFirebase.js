@@ -1,20 +1,12 @@
 // ============================================
 // FIREBASE DATABASE INITIALIZATION SCRIPT
 // ============================================
-// FIREBASE DATABASE INITIALIZATION SCRIPT
-// ============================================
 // Run this script to populate Firebase with sample data
 // Usage: node scripts/initializeFirebase.js
 // ============================================
 
 import { initializeApp } from 'firebase/app';
-import {
-    getFirestore,
-    doc,
-    setDoc,
-    writeBatch,
-    Timestamp
-} from 'firebase/firestore';
+import { getDatabase, ref, set } from 'firebase/database';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -31,82 +23,79 @@ const firebaseConfig = {
     projectId: process.env.VITE_FIREBASE_PROJECT_ID,
     storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.VITE_FIREBASE_APP_ID
+    appId: process.env.VITE_FIREBASE_APP_ID,
+    databaseURL: process.env.VITE_FIREBASE_DATABASE_URL
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = getDatabase(app);
 
 console.log('🔥 Firebase initialized successfully!');
 console.log(`📦 Project ID: ${firebaseConfig.projectId}`);
+console.log(`🔗 Database URL: ${firebaseConfig.databaseURL}`);
 
 // ============================================
 // SAMPLE DATA
 // ============================================
 
-const sampleIncidents = [
-    {
-        id: 'inc-001',
+const sampleIncidents = {
+    'inc-001': {
         type: 'Suspicious Activity',
         status: 'active',
         location: 'Downtown Plaza, Sector 7',
-        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 15)),
+        timestamp: Date.now() - 1000 * 60 * 15,
         delay: '2 min',
         priority: 'high',
         description: 'Multiple individuals loitering near ATM machines',
         mediaUrl: null,
         assignedOfficer: 'Officer Martinez'
     },
-    {
-        id: 'inc-002',
+    'inc-002': {
         type: 'Traffic Violation',
         status: 'reviewing',
         location: 'Highway 101, Exit 42',
-        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 45)),
+        timestamp: Date.now() - 1000 * 60 * 45,
         delay: '5 min',
         priority: 'medium',
         description: 'Vehicle running red light at intersection',
         mediaUrl: null,
         assignedOfficer: 'Officer Chen'
     },
-    {
-        id: 'inc-003',
+    'inc-003': {
         type: 'Theft Report',
         status: 'resolved',
         location: 'Riverside Mall, Parking Lot B',
-        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 120)),
+        timestamp: Date.now() - 1000 * 60 * 120,
         delay: '1 min',
         priority: 'high',
         description: 'Vehicle break-in reported by security',
         mediaUrl: null,
         assignedOfficer: 'Officer Johnson'
     },
-    {
-        id: 'inc-004',
+    'inc-004': {
         type: 'Public Disturbance',
         status: 'active',
         location: 'Central Park, North Entrance',
-        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 30)),
+        timestamp: Date.now() - 1000 * 60 * 30,
         delay: '3 min',
         priority: 'medium',
         description: 'Loud noise complaint from nearby residents',
         mediaUrl: null,
         assignedOfficer: 'Officer Davis'
     },
-    {
-        id: 'inc-005',
+    'inc-005': {
         type: 'Vandalism',
         status: 'reviewing',
         location: 'Metro Station, Platform 3',
-        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 90)),
+        timestamp: Date.now() - 1000 * 60 * 90,
         delay: '4 min',
         priority: 'low',
         description: 'Graffiti detected on station walls',
         mediaUrl: null,
         assignedOfficer: 'Officer Williams'
     }
-];
+};
 
 const analyticsData = {
     incidentTrends: [
@@ -194,37 +183,26 @@ const adminSettings = {
 // ============================================
 
 async function initializeIncidents() {
-    console.log('\n📋 Initializing incidents collection...');
-    const batch = writeBatch(db);
-
-    for (const incident of sampleIncidents) {
-        const { id, ...data } = incident;
-        const incidentRef = doc(db, 'incidents', id);
-        batch.set(incidentRef, data);
-    }
-
-    await batch.commit();
-    console.log(`✅ Added ${sampleIncidents.length} incidents`);
+    console.log('\n📋 Initializing incidents...');
+    await set(ref(db, 'incidents'), sampleIncidents);
+    console.log(`✅ Added ${Object.keys(sampleIncidents).length} incidents`);
 }
 
 async function initializeAnalytics() {
-    console.log('\n📊 Initializing analytics collection...');
-    const analyticsRef = doc(db, 'analytics', 'summary');
-    await setDoc(analyticsRef, analyticsData);
+    console.log('\n📊 Initializing analytics...');
+    await set(ref(db, 'analytics/summary'), analyticsData);
     console.log('✅ Analytics data initialized');
 }
 
 async function initializeStats() {
-    console.log('\n📈 Initializing stats collection...');
-    const statsRef = doc(db, 'stats', 'daily');
-    await setDoc(statsRef, statsData);
+    console.log('\n📈 Initializing stats...');
+    await set(ref(db, 'stats/daily'), statsData);
     console.log('✅ Daily stats initialized');
 }
 
 async function initializeOfficerSettings() {
     console.log('\n👮 Initializing officer settings...');
-    const settingsRef = doc(db, 'officers', 'admin', 'settings', 'preferences');
-    await setDoc(settingsRef, adminSettings);
+    await set(ref(db, 'officers/admin/settings/preferences'), adminSettings);
     console.log('✅ Admin officer settings initialized');
 }
 
@@ -234,7 +212,7 @@ async function initializeOfficerSettings() {
 
 async function main() {
     try {
-        console.log('\n🚀 Starting Firebase database initialization...\n');
+        console.log('\n🚀 Starting Firebase Realtime Database initialization...\n');
         console.log('='.repeat(50));
 
         await initializeIncidents();
@@ -244,7 +222,7 @@ async function main() {
 
         console.log('\n' + '='.repeat(50));
         console.log('\n✨ Firebase database initialized successfully!');
-        console.log('\n📝 Collections created:');
+        console.log('\n📝 Nodes created:');
         console.log('   - incidents (5 sample incidents)');
         console.log('   - analytics/summary (trends and statistics)');
         console.log('   - stats/daily (dashboard stats)');
@@ -259,8 +237,8 @@ async function main() {
         console.error('\nPlease check:');
         console.error('1. Your Firebase credentials in .env are correct');
         console.error('2. You have proper permissions in Firebase Console');
-        console.error('3. Firestore is enabled in your Firebase project');
-        console.error('4. Firestore security rules allow writes');
+        console.error('3. Realtime Database is enabled in your Firebase project');
+        console.error('4. Database security rules allow writes');
         process.exit(1);
     }
 }

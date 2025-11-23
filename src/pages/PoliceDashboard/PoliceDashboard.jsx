@@ -6,7 +6,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { ref, query, orderByChild, onValue, push, update, get } from 'firebase/database';
 import { db } from '../../firebase';
 import LoginPage from './components/LoginPage';
 import Navbar from './components/Navbar';
@@ -59,26 +59,27 @@ const PoliceDashboard = () => {
     useEffect(() => {
         if (!isAuthenticated) return;
 
-        // Listen for active high-priority incidents
-        // Note: Simplified query to avoid needing a composite index during development
-        const q = query(
-            collection(db, 'incidents'),
-            where('priority', '==', 'high'),
-            where('status', '==', 'active')
-        );
+        // Listen for all incidents and filter client-side
+        // Note: Realtime Database doesn't support compound queries
+        const incidentsRef = query(ref(db, 'incidents'), orderByChild('timestamp'));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            if (!snapshot.empty) {
-                // Manually sort by timestamp desc to get the latest
-                const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                alerts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const unsubscribe = onValue(incidentsRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                // Convert to array and filter client-side
+                const alerts = Object.keys(data)
+                    .map(key => ({ id: key, ...data[key] }))
+                    .filter(incident => incident.priority === 'high' && incident.status === 'active')
+                    .sort((a, b) => b.timestamp - a.timestamp);
 
-                const alertData = alerts[0];
+                if (alerts.length > 0) {
+                    const alertData = alerts[0];
 
-                // Only trigger if it's a new alert (or we haven't seen it yet)
-                if (!currentAlert || currentAlert.id !== alertData.id) {
-                    setCurrentAlert(alertData);
-                    setNotifyMode(true);
+                    // Only trigger if it's a new alert (or we haven't seen it yet)
+                    if (!currentAlert || currentAlert.id !== alertData.id) {
+                        setCurrentAlert(alertData);
+                        setNotifyMode(true);
+                    }
                 }
             }
         });
@@ -118,13 +119,14 @@ const PoliceDashboard = () => {
     // Handle Triggering Urgent Alert (Writes to DB)
     const handleTriggerNotify = async () => {
         try {
-            await addDoc(collection(db, 'incidents'), {
+            const incidentsRef = ref(db, 'incidents');
+            await push(incidentsRef, {
                 type: 'Weapon Detected',
                 status: 'active',
                 priority: 'high',
                 location: 'Sector 4, Main Entrance',
-                timestamp: new Date().toISOString(), // Use ISO string for consistency
-                recordedAt: new Date().toISOString(),
+                timestamp: Date.now(),
+                recordedAt: Date.now(),
                 description: 'AI surveillance system detected a potential weapon in the main entrance area. Immediate verification required.',
                 delay: '0.5s',
                 mediaUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
@@ -142,7 +144,8 @@ const PoliceDashboard = () => {
         setNotifyMode(false);
         if (currentAlert) {
             try {
-                await updateDoc(doc(db, 'incidents', currentAlert.id), { status: 'acknowledged' });
+                const incidentRef = ref(db, `incidents/${currentAlert.id}`);
+                await update(incidentRef, { status: 'acknowledged' });
             } catch (error) {
                 console.error('Error updating alert status:', error);
             }

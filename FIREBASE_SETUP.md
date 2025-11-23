@@ -1,20 +1,20 @@
 # Firebase Database Setup Guide
 
 ## Overview
-This guide will help you populate your Firebase Firestore database with sample data for the new sidebar features (Incidents, Analytics, Settings).
+This guide will help you populate your Firebase Realtime Database with sample data for the new sidebar features (Incidents, Analytics, Settings).
 
 ## Prerequisites
 ✅ Firebase project created (`cogni-b9d6b`)  
-✅ Firestore enabled in Firebase Console  
-✅ Environment variables configured in `.env`  
+✅ Realtime Database enabled in Firebase Console  
+✅ Environment variables configured in `.env` (including `VITE_FIREBASE_DATABASE_URL`)  
 ✅ Dependencies installed (`npm install` completed)
 
-## Step 1: Deploy Updated Firestore Rules
+## Step 1: Deploy Updated Database Rules
 
-The Firestore security rules have been updated to allow writes for the new collections. Deploy them to Firebase:
+The Realtime Database security rules have been updated to allow writes for the new nodes. Deploy them to Firebase:
 
 ```powershell
-firebase deploy --only firestore:rules
+firebase deploy --only database
 ```
 
 **Important:** The current rules allow open writes for development. Before going to production, you should restrict these rules to require authentication.
@@ -28,25 +28,26 @@ node scripts/initializeFirebase.js
 ```
 
 ### What This Script Does:
-1. **Creates `incidents` collection** with 5 sample incidents
-2. **Creates `analytics/summary` document** with trends and statistics
-3. **Creates `stats/daily` document** with dashboard metrics
+1. **Creates `incidents` node** with 5 sample incidents
+2. **Creates `analytics/summary` node** with trends and statistics
+3. **Creates `stats/daily` node** with dashboard metrics
 4. **Creates `officers/admin/settings/preferences`** with admin user settings
 
 ### Expected Output:
 ```
 🔥 Firebase initialized successfully!
 📦 Project ID: cogni-b9d6b
+🔗 Database URL: https://cogni-b9d6b-default-rtdb.firebaseio.com
 
 ==================================================
 
-📋 Initializing incidents collection...
+📋 Initializing incidents...
 ✅ Added 5 incidents
 
-📊 Initializing analytics collection...
+📊 Initializing analytics...
 ✅ Analytics data initialized
 
-📈 Initializing stats collection...
+📈 Initializing stats...
 ✅ Daily stats initialized
 
 👮 Initializing officer settings...
@@ -56,7 +57,7 @@ node scripts/initializeFirebase.js
 
 ✨ Firebase database initialized successfully!
 
-📝 Collections created:
+📝 Nodes created:
    - incidents (5 sample incidents)
    - analytics/summary (trends and statistics)
    - stats/daily (dashboard stats)
@@ -71,12 +72,12 @@ node scripts/initializeFirebase.js
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Select your project (`cogni-b9d6b`)
-3. Navigate to **Firestore Database**
-4. You should see the following collections:
-   - `incidents` (5 documents)
-   - `analytics` (1 document: `summary`)
-   - `stats` (1 document: `daily`)
-   - `officers` → `admin` → `settings` (1 document: `preferences`)
+3. Navigate to **Realtime Database**
+4. You should see the following nodes:
+   - `incidents` (5 items)
+   - `analytics` (1 item: `summary`)
+   - `stats` (1 item: `daily`)
+   - `officers` → `admin` → `settings` (1 item: `preferences`)
 
 ## Step 4: Test the Dashboard
 
@@ -102,12 +103,12 @@ node scripts/initializeFirebase.js
 ## Troubleshooting
 
 ### Error: "Firebase connection unavailable"
-**Solution:** Check your `.env` file credentials and ensure Firestore is enabled in Firebase Console.
+**Solution:** Check your `.env` file credentials, specifically `VITE_FIREBASE_DATABASE_URL`.
 
 ### Error: "Permission denied"
-**Solution:** Run `firebase deploy --only firestore:rules` to deploy the updated security rules.
+**Solution:** Run `firebase deploy --only database` to deploy the updated security rules.
 
-### Error: "Collection not found"
+### Error: "Node not found"
 **Solution:** Re-run the initialization script: `node scripts/initializeFirebase.js`
 
 ### Data not showing in dashboard
@@ -118,19 +119,23 @@ node scripts/initializeFirebase.js
 
 ## Production Deployment
 
-Before deploying to production, update `firestore.rules` to restrict write access:
+Before deploying to production, update `database.rules.json` to restrict write access:
 
-```javascript
-// Change this:
-allow create, update: if true;
-
-// To this:
-allow create, update: if isOfficer();
+```json
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null && root.child('officers').child(auth.uid).child('role').val() === 'admin'",
+    "incidents": {
+      ".indexOn": ["status", "timestamp"]
+    }
+  }
+}
 ```
 
 Then deploy:
 ```powershell
-firebase deploy --only firestore:rules
+firebase deploy --only database
 ```
 
 ## Next Steps

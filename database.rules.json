@@ -1,0 +1,82 @@
+{
+    "rules": {
+        ".read": false,
+        ".write": false,
+        "incidents": {
+            ".read": true,
+            ".indexOn": [
+                "timestamp",
+                "priority",
+                "status"
+            ],
+            "$incidentId": {
+                ".write": true,
+                ".validate": "newData.hasChildren(['type', 'status', 'priority', 'location', 'timestamp'])"
+            }
+        },
+        "stats": {
+            "daily": {
+                ".read": true,
+                ".write": true
+            }
+        },
+        "alerts": {
+            ".read": "auth != null && (root.child('officers').child(auth.uid).child('role').val() === 'officer' || root.child('officers').child(auth.uid).child('role').val() === 'admin' || root.child('officers').child(auth.uid).child('role').val() === 'supervisor')",
+            "$alertId": {
+                ".write": false,
+                ".validate": "newData.hasChildren(['type', 'location', 'status', 'priority'])"
+            }
+        },
+        "officers": {
+            "$officerId": {
+                ".read": "auth != null && (auth.uid === $officerId || root.child('officers').child(auth.uid).child('role').val() === 'admin')",
+                ".write": "auth != null && root.child('officers').child(auth.uid).child('role').val() === 'admin'",
+                "fcm_tokens": {
+                    ".write": "auth != null && auth.uid === $officerId"
+                },
+                "last_login": {
+                    ".write": "auth != null && auth.uid === $officerId"
+                }
+            }
+        },
+        "citizenUpdates": {
+            ".read": true,
+            ".indexOn": [
+                "created_at",
+                "category",
+                "is_published"
+            ],
+            "$updateId": {
+                ".write": "auth != null && root.child('officers').child(auth.uid).child('role').val() === 'admin'",
+                "view_count": {
+                    ".write": true,
+                    ".validate": "newData.isNumber() && newData.val() === data.val() + 1"
+                }
+            }
+        },
+        "aiAgentLogs": {
+            "$logId": {
+                ".read": "auth != null && (data.child('officer_id').val() === auth.uid || root.child('officers').child(auth.uid).child('role').val() === 'admin')",
+                ".write": false
+            }
+        },
+        "notificationLogs": {
+            "$logId": {
+                ".read": "auth != null && (data.child('officer_id').val() === auth.uid || root.child('officers').child(auth.uid).child('role').val() === 'admin')",
+                ".write": false
+            }
+        },
+        "analytics": {
+            ".read": true,
+            "$docId": {
+                ".write": true
+            }
+        },
+        "rateLimits": {
+            "$officerId": {
+                ".read": "auth != null && auth.uid === $officerId",
+                ".write": false
+            }
+        }
+    }
+}

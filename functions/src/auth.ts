@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+const db = admin.database();
 
 /**
  * Register a new police officer
@@ -33,16 +33,16 @@ export const registerOfficer = functions.https.onCall(async (data, context) => {
             role,
         });
 
-        // Create Firestore profile
-        await db.collection('officers').doc(userRecord.uid).set({
+        // Create Realtime Database profile
+        await db.ref(`officers/${userRecord.uid}`).set({
             officer_id,
             name,
             email,
             phone_number,
             role,
             is_active: true,
-            fcm_tokens: [],
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            fcm_tokens: {},
+            created_at: admin.database.ServerValue.TIMESTAMP,
         });
 
         functions.logger.info('Officer registered', {
@@ -89,8 +89,8 @@ export const setOfficerRole = functions.https.onCall(async (data, context) => {
         // Update custom claims
         await admin.auth().setCustomUserClaims(uid, { role });
 
-        // Update Firestore
-        await db.collection('officers').doc(uid).update({
+        // Update Realtime Database
+        await db.ref(`officers/${uid}`).update({
             role,
         });
 
@@ -121,13 +121,13 @@ export const getOfficerProfile = functions.https.onCall(async (data, context) =>
     }
 
     try {
-        const officerDoc = await db.collection('officers').doc(requestedUid).get();
+        const officerSnapshot = await db.ref(`officers/${requestedUid}`).once('value');
 
-        if (!officerDoc.exists) {
+        if (!officerSnapshot.exists()) {
             throw new functions.https.HttpsError('not-found', 'Officer not found');
         }
 
-        const officer = officerDoc.data()!;
+        const officer = officerSnapshot.val();
 
         // Don't return sensitive data to non-admins
         if (context.auth.token.role !== 'admin') {
@@ -137,7 +137,7 @@ export const getOfficerProfile = functions.https.onCall(async (data, context) =>
         return {
             success: true,
             officer: {
-                uid: officerDoc.id,
+                uid: requestedUid,
                 ...officer,
             },
         };
@@ -156,8 +156,8 @@ export const updateLastLogin = functions.https.onCall(async (data, context) => {
     }
 
     try {
-        await db.collection('officers').doc(context.auth.uid).update({
-            last_login: admin.firestore.FieldValue.serverTimestamp(),
+        await db.ref(`officers/${context.auth.uid}`).update({
+            last_login: admin.database.ServerValue.TIMESTAMP,
         });
 
         return { success: true };
@@ -185,8 +185,8 @@ export const deactivateOfficer = functions.https.onCall(async (data, context) =>
         // Disable Firebase Auth
         await admin.auth().updateUser(uid, { disabled: true });
 
-        // Update Firestore
-        await db.collection('officers').doc(uid).update({
+        // Update Realtime Database
+        await db.ref(`officers/${uid}`).update({
             is_active: false,
         });
 

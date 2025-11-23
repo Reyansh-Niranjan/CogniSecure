@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+const db = admin.database();
 
 /**
  * HTTP endpoint to receive alerts from RD (Raspberry Pi Device)
@@ -45,8 +45,9 @@ export const receiveAlert = functions.https.onRequest(async (req, res) => {
         const timestamp_received = Date.now();
         const delay_ms = timestamp_received - timestamp_sent;
 
-        // Store alert in Firestore
-        const alertRef = await db.collection('alerts').add({
+        // Store alert in Realtime Database
+        const alertRef = db.ref('alerts').push();
+        await alertRef.set({
             timestamp_recorded,
             timestamp_sent,
             timestamp_received,
@@ -56,18 +57,18 @@ export const receiveAlert = functions.https.onRequest(async (req, res) => {
             rpi_device_id,
             location: location || null,
             status: 'active',
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            created_at: admin.database.ServerValue.TIMESTAMP,
         });
 
         functions.logger.info('Alert received', {
-            alert_id: alertRef.id,
+            alert_id: alertRef.key,
             device: rpi_device_id,
             delay_ms,
         });
 
         res.status(200).json({
             success: true,
-            alert_id: alertRef.id,
+            alert_id: alertRef.key,
             delay_ms,
             message: 'Alert received and will be sent to police officers',
         });
@@ -98,23 +99,33 @@ export const getAlerts = functions.https.onCall(async (data, context) => {
     const { status, limit = 50, rpi_device_id } = data;
 
     try {
-        let query = db.collection('alerts') as any;
+        let alertsRef = db.ref('alerts').orderByChild('timestamp_received');
 
+        const snapshot = await alertsRef.once('value');
+
+        if (!snapshot.exists()) {
+            return { success: true, alerts: [] };
+        }
+
+        const data = snapshot.val();
+        let alerts = Object.keys(data).map(key => ({
+            id: key,
+            ...data[key]
+        }));
+
+        // Client-side filtering since Realtime Database doesn't support compound queries
         if (status) {
-            query = query.where('status', '==', status);
+            alerts = alerts.filter(alert => alert.status === status);
         }
 
         if (rpi_device_id) {
-            query = query.where('rpi_device_id', '==', rpi_device_id);
+            alerts = alerts.filter(alert => alert.rpi_device_id === rpi_device_id);
         }
 
-        query = query.orderBy('timestamp_received', 'desc').limit(limit);
-
-        const snapshot = await query.get();
-        const alerts = snapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
+        // Sort descending and limit
+        alerts = alerts
+            .sort((a, b) => b.timestamp_received - a.timestamp_received)
+            .slice(0, limit);
 
         return { success: true, alerts };
     } catch (error: any) {
@@ -144,7 +155,7 @@ export const updateAlertStatus = functions.https.onCall(async (data, context) =>
     }
 
     try {
-        const alertRef = db.collection('alerts').doc(alert_id);
+        const alertRef = db.ref(`alerts/${alert_id}`);
         const updateData: any = {
             status,
             notes: notes || null,
@@ -152,10 +163,10 @@ export const updateAlertStatus = functions.https.onCall(async (data, context) =>
 
         if (status === 'acknowledged') {
             updateData.acknowledged_by = context.auth.uid;
-            updateData.acknowledged_at = admin.firestore.FieldValue.serverTimestamp();
+            updateData.acknowledged_at = admin.database.ServerValue.TIMESTAMP;
         } else if (status === 'resolved' || status === 'false_alarm') {
             updateData.resolved_by = context.auth.uid;
-            updateData.resolved_at = admin.firestore.FieldValue.serverTimestamp();
+            updateData.resolved_at = admin.database.ServerValue.TIMESTAMP;
         }
 
         await alertRef.update(updateData);
@@ -183,11 +194,27 @@ export const getAlertStats = functions.https.onCall(async (data, context) => {
 
     try {
         const snapshot = await db
-            .collection('alerts')
-            .where('timestamp_received', '>=', cutoff)
-            .get();
+            .ref('alerts')
+            .orderByChild('timestamp_received')
+            .startAt(cutoff)
+            .once('value');
 
-        const alerts = snapshot.docs.map(doc => doc.data());
+        if (!snapshot.exists()) {
+            return {
+                success: true,
+                stats: {
+                    total: 0,
+                    active: 0,
+                    acknowledged: 0,
+                    resolved: 0,
+                    false_alarms: 0,
+                    average_delay_ms: 0,
+                    timeframe_hours,
+                }
+            };
+        }
+
+        const alerts = Object.values(snapshot.val()) as any[];
 
         const stats = {
             total: alerts.length,

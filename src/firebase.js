@@ -7,7 +7,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getMessaging, isSupported } from 'firebase/messaging';
@@ -25,7 +25,8 @@ const firebaseConfig = {
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL
 };
 
 // ============================================
@@ -45,10 +46,10 @@ const app = initializeApp(firebaseConfig);
 // Handles user sessions, tokens, and custom claims (roles)
 export const auth = getAuth(app);
 
-// FIRESTORE DATABASE
-// Real-time NoSQL database for alerts, officers, citizen updates
+// REALTIME DATABASE
+// Real-time JSON database for alerts, officers, citizen updates
 // Used by both dashboards to read/write data
-export const db = getFirestore(app);
+export const db = getDatabase(app);
 
 // CLOUD FUNCTIONS
 // Serverless backend functions for alert processing, AI agent, etc.
@@ -87,8 +88,8 @@ if (useEmulators) {
     // Connect to Auth Emulator (port 9099)
     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
 
-    // Connect to Firestore Emulator (port 8080)
-    connectFirestoreEmulator(db, 'localhost', 8080);
+    // Connect to Realtime Database Emulator (port 9000)
+    connectDatabaseEmulator(db, 'localhost', 9000);
 
     // Connect to Functions Emulator (port 5001)
     connectFunctionsEmulator(functions, 'localhost', 5001);

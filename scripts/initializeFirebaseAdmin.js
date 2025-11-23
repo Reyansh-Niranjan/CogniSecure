@@ -1,70 +1,87 @@
 // ============================================
+// FIREBASE ADMIN INITIALIZATION SCRIPT
+// ============================================
+
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
 console.log(`📦 Project ID: ${process.env.VITE_FIREBASE_PROJECT_ID}`);
 
 const admin = require('firebase-admin');
-const db = admin.firestore();
+
+// Initialize Firebase Admin
+// Note: This requires GOOGLE_APPLICATION_CREDENTIALS to be set, 
+// or you can pass a service account credential object here.
+// For local emulator usage, it might work without credentials if FIREBASE_DATABASE_EMULATOR_HOST is set.
+if (!admin.apps.length) {
+    admin.initializeApp({
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+        databaseURL: process.env.VITE_FIREBASE_DATABASE_URL
+    });
+}
+
+const db = admin.database();
 
 // ============================================
 // SAMPLE DATA
 // ============================================
 
-const sampleIncidents = [
-    {
+const sampleIncidents = {
+    'inc-001': {
         type: 'Suspicious Activity',
         status: 'active',
         location: 'Downtown Plaza, Sector 7',
-        timestamp: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 15)),
+        timestamp: Date.now() - 1000 * 60 * 15,
         delay: '2 min',
         priority: 'high',
         description: 'Multiple individuals loitering near ATM machines',
         mediaUrl: null,
         assignedOfficer: 'Officer Martinez'
     },
-    {
+    'inc-002': {
         type: 'Traffic Violation',
         status: 'reviewing',
         location: 'Highway 101, Exit 42',
-        timestamp: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 45)),
+        timestamp: Date.now() - 1000 * 60 * 45,
         delay: '5 min',
         priority: 'medium',
         description: 'Vehicle running red light at intersection',
         mediaUrl: null,
         assignedOfficer: 'Officer Chen'
     },
-    {
+    'inc-003': {
         type: 'Theft Report',
         status: 'resolved',
         location: 'Riverside Mall, Parking Lot B',
-        timestamp: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 120)),
+        timestamp: Date.now() - 1000 * 60 * 120,
         delay: '1 min',
         priority: 'high',
         description: 'Vehicle break-in reported by security',
         mediaUrl: null,
         assignedOfficer: 'Officer Johnson'
     },
-    {
+    'inc-004': {
         type: 'Public Disturbance',
         status: 'active',
         location: 'Central Park, North Entrance',
-        timestamp: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 30)),
+        timestamp: Date.now() - 1000 * 60 * 30,
         delay: '3 min',
         priority: 'medium',
         description: 'Loud noise complaint from nearby residents',
         mediaUrl: null,
         assignedOfficer: 'Officer Davis'
     },
-    {
+    'inc-005': {
         type: 'Vandalism',
         status: 'reviewing',
         location: 'Metro Station, Platform 3',
-        timestamp: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 90)),
+        timestamp: Date.now() - 1000 * 60 * 90,
         delay: '4 min',
         priority: 'low',
         description: 'Graffiti detected on station walls',
         mediaUrl: null,
         assignedOfficer: 'Officer Williams'
     }
-];
+};
 
 const analyticsData = {
     incidentTrends: [
@@ -152,34 +169,26 @@ const adminSettings = {
 // ============================================
 
 async function initializeIncidents() {
-    console.log('\n📋 Initializing incidents collection...');
-    const batch = db.batch();
-
-    sampleIncidents.forEach((incident, index) => {
-        const docRef = db.collection('incidents').doc(`inc-00${index + 1}`);
-        batch.set(docRef, incident);
-    });
-
-    await batch.commit();
-    console.log(`✅ Added ${sampleIncidents.length} incidents`);
+    console.log('\n📋 Initializing incidents...');
+    await db.ref('incidents').set(sampleIncidents);
+    console.log(`✅ Added ${Object.keys(sampleIncidents).length} incidents`);
 }
 
 async function initializeAnalytics() {
-    console.log('\n📊 Initializing analytics collection...');
-    await db.collection('analytics').doc('summary').set(analyticsData);
+    console.log('\n📊 Initializing analytics...');
+    await db.ref('analytics/summary').set(analyticsData);
     console.log('✅ Analytics data initialized');
 }
 
 async function initializeStats() {
-    console.log('\n📈 Initializing stats collection...');
-    await db.collection('stats').doc('daily').set(statsData);
+    console.log('\n📈 Initializing stats...');
+    await db.ref('stats/daily').set(statsData);
     console.log('✅ Daily stats initialized');
 }
 
 async function initializeOfficerSettings() {
     console.log('\n👮 Initializing officer settings...');
-    await db.collection('officers').doc('admin')
-        .collection('settings').doc('preferences').set(adminSettings);
+    await db.ref('officers/admin/settings/preferences').set(adminSettings);
     console.log('✅ Admin officer settings initialized');
 }
 
@@ -189,7 +198,7 @@ async function initializeOfficerSettings() {
 
 async function main() {
     try {
-        console.log('\n🚀 Starting Firebase database initialization...\n');
+        console.log('\n🚀 Starting Firebase Realtime Database initialization...\n');
         console.log('='.repeat(50));
 
         await initializeIncidents();
@@ -199,7 +208,7 @@ async function main() {
 
         console.log('\n' + '='.repeat(50));
         console.log('\n✨ Firebase database initialized successfully!');
-        console.log('\n📝 Collections created:');
+        console.log('\n📝 Nodes created:');
         console.log('   - incidents (5 sample incidents)');
         console.log('   - analytics/summary (trends and statistics)');
         console.log('   - stats/daily (dashboard stats)');
@@ -211,10 +220,6 @@ async function main() {
         process.exit(0);
     } catch (error) {
         console.error('\n❌ Error initializing Firebase:', error);
-        console.error('\nPlease check:');
-        console.error('1. Your Firebase credentials in .env are correct');
-        console.error('2. You have proper permissions in Firebase Console');
-        console.error('3. Firestore is enabled in your Firebase project');
         process.exit(1);
     }
 }

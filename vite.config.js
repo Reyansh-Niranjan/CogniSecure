@@ -15,17 +15,8 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: {
-                    // Separate Firebase SDK into its own chunk
-                    'firebase': [
-                        'firebase/app',
-                        'firebase/auth',
-                        'firebase/firestore',
-                        'firebase/functions',
-                        'firebase/storage',
-                        'firebase/messaging'
-                    ],
-                    // Separate React libraries
                     'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+                    'firebase': ['firebase/app', 'firebase/auth', 'firebase/database', 'firebase/functions', 'firebase/storage']
                 }
             }
         }

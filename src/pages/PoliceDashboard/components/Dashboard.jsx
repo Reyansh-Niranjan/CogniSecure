@@ -6,7 +6,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
+import { ref, onValue, query, orderByChild, limitToLast } from 'firebase/database';
 import { db } from '../../../firebase';
 
 import IncidentsView from './IncidentsView';
@@ -36,47 +36,51 @@ export default function Dashboard({ user, onTriggerNotify }) {
 
   useEffect(() => {
     // Listen for stats updates
-    const statsUnsub = onSnapshot(doc(db, 'stats', 'daily'), (doc) => {
-      if (doc.exists()) {
-        setStats(doc.data());
+    const statsRef = ref(db, 'stats/daily');
+    const statsUnsub = onValue(statsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setStats(snapshot.val());
       }
     });
 
     // Listen for recent incidents
-    const q = query(
-      collection(db, 'incidents'),
-      orderBy('timestamp', 'desc'),
-      limit(5)
+    const incidentsRef = query(
+      ref(db, 'incidents'),
+      orderByChild('timestamp'),
+      limitToLast(5)
     );
 
-    const incidentsUnsub = onSnapshot(q, (snapshot) => {
-      const incidents = snapshot.docs.map(doc => {
-        const data = doc.data();
-        let timestamp = new Date().toISOString();
+    const incidentsUnsub = onValue(incidentsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const incidents = Object.keys(data).map(key => {
+          const incident = data[key];
+          let timestamp = Date.now();
 
-        if (data.timestamp) {
-          try {
-            // Handle Firestore Timestamp
-            if (data.timestamp && typeof data.timestamp.toDate === 'function') {
-              timestamp = data.timestamp.toDate().toISOString();
+          if (incident.timestamp) {
+            try {
+              // Realtime Database uses milliseconds
+              timestamp = typeof incident.timestamp === 'number'
+                ? incident.timestamp
+                : new Date(incident.timestamp).getTime();
+            } catch (e) {
+              console.warn('Error parsing timestamp:', e);
+              timestamp = Date.now();
             }
-            // Handle String or Date object
-            else if (data.timestamp) {
-              timestamp = new Date(data.timestamp).toISOString();
-            }
-          } catch (e) {
-            console.warn('Error parsing timestamp:', e);
-            timestamp = new Date().toISOString();
           }
-        }
 
-        return {
-          id: doc.id,
-          ...data,
-          timestamp
-        };
-      });
-      setRecentIncidents(incidents);
+          return {
+            id: key,
+            ...incident,
+            timestamp
+          };
+        });
+        // Sort descending (most recent first)
+        incidents.sort((a, b) => b.timestamp - a.timestamp);
+        setRecentIncidents(incidents);
+      } else {
+        setRecentIncidents([]);
+      }
     });
 
     return () => {

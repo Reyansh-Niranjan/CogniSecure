@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+const db = admin.database();
 
 /**
  * Create a new citizen update (admin only)
@@ -22,21 +22,22 @@ export const createUpdate = functions.https.onCall(async (data, _context) => {
     }
 
     try {
-        const updateRef = await db.collection('citizenUpdates').add({
+        const updateRef = db.ref('citizenUpdates').push();
+        await updateRef.set({
             title,
             content,
             category, // "safety_tip", "crime_alert", "announcement", "statistics"
             priority, // "low", "medium", "high", "critical"
             image_url: image_url || null,
             created_by: _context.auth.uid,
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            created_at: admin.database.ServerValue.TIMESTAMP,
             is_published: true,
             view_count: 0,
         });
 
         return {
             success: true,
-            update_id: updateRef.id,
+            update_id: updateRef.key,
         };
     } catch (error: any) {
         functions.logger.error('Error creating update', error);
@@ -51,23 +52,32 @@ export const getUpdates = functions.https.onCall(async (data, _context) => {
     const { category, priority, limit = 20 } = data;
 
     try {
-        let query = db.collection('citizenUpdates').where('is_published', '==', true) as any;
+        const snapshot = await db.ref('citizenUpdates')
+            .orderByChild('created_at')
+            .once('value');
 
+        if (!snapshot.exists()) {
+            return { success: true, updates: [] };
+        }
+
+        const data = snapshot.val();
+        let updates = Object.keys(data)
+            .map(key => ({ id: key, ...data[key] }))
+            .filter(update => update.is_published === true);
+
+        // Client-side filtering
         if (category) {
-            query = query.where('category', '==', category);
+            updates = updates.filter(update => update.category === category);
         }
 
         if (priority) {
-            query = query.where('priority', '==', priority);
+            updates = updates.filter(update => update.priority === priority);
         }
 
-        query = query.orderBy('created_at', 'desc').limit(limit);
-
-        const snapshot = await query.get();
-        const updates = snapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
+        // Sort descending and limit
+        updates = updates
+            .sort((a, b) => b.created_at - a.created_at)
+            .slice(0, limit);
 
         return { success: true, updates };
     } catch (error: any) {
@@ -95,16 +105,16 @@ export const updateUpdate = functions.https.onCall(async (data, _context) => {
     }
 
     try {
-        const updateRef = db.collection('citizenUpdates').doc(update_id);
-        const updateDoc = await updateRef.get();
+        const updateRef = db.ref(`citizenUpdates/${update_id}`);
+        const snapshot = await updateRef.once('value');
 
-        if (!updateDoc.exists) {
+        if (!snapshot.exists()) {
             throw new functions.https.HttpsError('not-found', 'Update not found');
         }
 
         await updateRef.update({
             ...updateFields,
-            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.database.ServerValue.TIMESTAMP,
         });
 
         return { success: true };
@@ -133,7 +143,7 @@ export const deleteUpdate = functions.https.onCall(async (data, _context) => {
     }
 
     try {
-        await db.collection('citizenUpdates').doc(update_id).delete();
+        await db.ref(`citizenUpdates/${update_id}`).remove();
         return { success: true };
     } catch (error: any) {
         functions.logger.error('Error deleting update', error);
@@ -152,9 +162,11 @@ export const incrementViewCount = functions.https.onCall(async (data, _context) 
     }
 
     try {
-        const updateRef = db.collection('citizenUpdates').doc(update_id);
+        const updateRef = db.ref(`citizenUpdates/${update_id}`);
+        const snapshot = await updateRef.child('view_count').once('value');
+        const currentCount = snapshot.val() || 0;
         await updateRef.update({
-            view_count: admin.firestore.FieldValue.increment(1),
+            view_count: currentCount + 1,
         });
 
         return { success: true };

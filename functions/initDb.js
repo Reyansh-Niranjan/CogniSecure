@@ -3,72 +3,73 @@ const admin = require('firebase-admin');
 // Initialize the Admin SDK when running scripts locally
 if (!admin.apps || admin.apps.length === 0) {
     const projectId = process.env.GCLOUD_PROJECT || process.env.VITE_FIREBASE_PROJECT_ID || 'cogni-b9d6b';
-    admin.initializeApp({ projectId });
+    const databaseURL = process.env.VITE_FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.asia-southeast1.firebasedatabase.app`;
+    admin.initializeApp({ projectId, databaseURL });
 }
 
-const db = admin.firestore();
+const db = admin.database();
 
 // ============================================
 // SAMPLE DATA
 // ============================================
 
-const sampleIncidents = [
-    {
+const sampleIncidents = {
+    'inc-001': {
         type: 'Suspicious Activity',
         status: 'active',
         location: 'Downtown Plaza, Sector 7',
-        timestamp: new Date(Date.now() - 1000 * 60 * 15),
+        timestamp: Date.now() - 1000 * 60 * 15,
         delay: '2 min',
         priority: 'high',
         description: 'Multiple individuals loitering near ATM machines',
         mediaUrl: null,
         assignedOfficer: 'Officer Martinez'
     },
-    {
+    'inc-002': {
         type: 'Traffic Violation',
         status: 'reviewing',
         location: 'Highway 101, Exit 42',
-        timestamp: new Date(Date.now() - 1000 * 60 * 45),
+        timestamp: Date.now() - 1000 * 60 * 45,
         delay: '5 min',
         priority: 'medium',
         description: 'Vehicle running red light at intersection',
         mediaUrl: null,
         assignedOfficer: 'Officer Chen'
     },
-    {
+    'inc-003': {
         type: 'Theft Report',
         status: 'resolved',
         location: 'Riverside Mall, Parking Lot B',
-        timestamp: new Date(Date.now() - 1000 * 60 * 120),
+        timestamp: Date.now() - 1000 * 60 * 120,
         delay: '1 min',
         priority: 'high',
         description: 'Vehicle break-in reported by security',
         mediaUrl: null,
         assignedOfficer: 'Officer Johnson'
     },
-    {
+    'inc-004': {
         type: 'Public Disturbance',
         status: 'active',
         location: 'Central Park, North Entrance',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
+        timestamp: Date.now() - 1000 * 60 * 30,
         delay: '3 min',
         priority: 'medium',
         description: 'Loud noise complaint from nearby residents',
         mediaUrl: null,
         assignedOfficer: 'Officer Davis'
     },
-    {
+    'inc-005': {
         type: 'Vandalism',
         status: 'reviewing',
         location: 'Metro Station, Platform 3',
-        timestamp: new Date(Date.now() - 1000 * 60 * 90),
+        timestamp: Date.now() - 1000 * 60 * 90,
         delay: '4 min',
         priority: 'low',
         description: 'Graffiti detected on station walls',
         mediaUrl: null,
         assignedOfficer: 'Officer Williams'
     }
-];
+};
 
 const analyticsData = {
     incidentTrends: [
@@ -154,27 +155,19 @@ const adminSettings = {
 async function initializeDatabase() {
     try {
         console.log('\n📋 Initializing incidents...');
-        const batch = db.batch();
-
-        sampleIncidents.forEach((incident, index) => {
-            const docRef = db.collection('incidents').doc(`inc-00${index + 1}`);
-            batch.set(docRef, incident);
-        });
-
-        await batch.commit();
-        console.log(`✅ Added ${sampleIncidents.length} incidents`);
+        await db.ref('incidents').set(sampleIncidents);
+        console.log(`✅ Added ${Object.keys(sampleIncidents).length} incidents`);
 
         console.log('\n📊 Initializing analytics...');
-        await db.collection('analytics').doc('summary').set(analyticsData);
+        await db.ref('analytics/summary').set(analyticsData);
         console.log('✅ Analytics data initialized');
 
         console.log('\n📈 Initializing stats...');
-        await db.collection('stats').doc('daily').set(statsData);
+        await db.ref('stats/daily').set(statsData);
         console.log('✅ Daily stats initialized');
 
         console.log('\n👮 Initializing officer settings...');
-        await db.collection('officers').doc('admin')
-            .collection('settings').doc('preferences').set(adminSettings);
+        await db.ref('officers/admin/settings/preferences').set(adminSettings);
         console.log('✅ Admin settings initialized');
 
         console.log('\n✨ Database populated successfully!');

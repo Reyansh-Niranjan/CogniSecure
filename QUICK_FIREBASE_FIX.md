@@ -1,24 +1,21 @@
 # Quick Firebase Setup Instructions
 
 ## Problem
-The initialization script can't write to Firestore because the security rules are blocking it, and you don't have CLI permissions to deploy new rules.
+The initialization script can't write to Realtime Database because the security rules are blocking it, and you don't have CLI permissions to deploy new rules.
 
 ## Solution: Update Rules in Firebase Console
 
 ### Step 1: Open Firebase Console
-Go to: https://console.firebase.google.com/project/cogni-b9d6b/firestore/rules
+Go to: https://console.firebase.google.com/project/cogni-b9d6b/database/cogni-b9d6b-default-rtdb/rules
 
 ### Step 2: Replace Rules (Temporary for Testing)
 Delete everything and paste this:
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // TEMPORARY: Allow all reads and writes for testing
-    match /{document=**} {
-      allow read, write: if true;
-    }
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": true
   }
 }
 ```
@@ -36,14 +33,15 @@ node scripts/initializeFirebase.js
 ```
 🔥 Firebase initialized successfully!
 📦 Project ID: cogni-b9d6b
+🔗 Database URL: https://cogni-b9d6b-default-rtdb.firebaseio.com
 
-📋 Initializing incidents collection...
+📋 Initializing incidents...
 ✅ Added 5 incidents
 
-📊 Initializing analytics collection...
+📊 Initializing analytics...
 ✅ Analytics data initialized
 
-📈 Initializing stats collection...
+📈 Initializing stats...
 ✅ Daily stats initialized
 
 👮 Initializing officer settings...
