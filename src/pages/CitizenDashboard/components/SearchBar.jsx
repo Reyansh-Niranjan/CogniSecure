@@ -2,7 +2,6 @@
 // SEARCH BAR COMPONENT - CITIZEN DASHBOARD
 // ============================================
 
-import React from 'react';
 import './SearchBar.css';
 
 /**

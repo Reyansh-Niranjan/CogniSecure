@@ -5,8 +5,8 @@
 // It handles authentication state, layout, and global alerts
 // ============================================
 
-import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, onSnapshot, addDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import LoginPage from './components/LoginPage';
 import Navbar from './components/Navbar';
@@ -108,7 +108,8 @@ const PoliceDashboard = () => {
         if (currentAlert) {
             setAiContext({
                 action,
-                data: currentAlert
+                data: currentAlert,
+                _id: Date.now()
             });
             setAiOpen(true);
         }
@@ -137,10 +138,15 @@ const PoliceDashboard = () => {
     };
 
     // Handle Dismissing Alert
-    const handleDismissNotify = () => {
+    const handleDismissNotify = async () => {
         setNotifyMode(false);
-        // Optional: Update alert status to 'reviewing' in DB
-        // await updateDoc(doc(db, 'incidents', currentAlert.id), { status: 'reviewing' });
+        if (currentAlert) {
+            try {
+                await updateDoc(doc(db, 'incidents', currentAlert.id), { status: 'acknowledged' });
+            } catch (error) {
+                console.error('Error updating alert status:', error);
+            }
+        }
         setCurrentAlert(null);
     };
 
@@ -181,8 +187,10 @@ const PoliceDashboard = () => {
 
                     <AIAssistant
                         isOpen={aiOpen}
+                        onOpen={() => setAiOpen(true)}
                         onClose={() => setAiOpen(false)}
                         context={aiContext}
+                        onContextProcessed={() => setAiContext(null)}
                     />
                 </>
             )}

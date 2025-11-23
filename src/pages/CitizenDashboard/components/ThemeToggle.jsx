@@ -2,7 +2,7 @@
 // THEME TOGGLE COMPONENT
 // ============================================
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './ThemeToggle.css';
 
 /**
@@ -10,14 +10,12 @@ import './ThemeToggle.css';
  * Toggle between light and dark mode
  */
 const ThemeToggle = () => {
-    const [theme, setTheme] = useState('light');
-
-    useEffect(() => {
+    const [theme, setTheme] = useState(() => {
         // Check for saved theme preference or default to 'light'
         const savedTheme = localStorage.getItem('theme') || 'light';
-        setTheme(savedTheme);
         document.documentElement.setAttribute('data-theme', savedTheme);
-    }, []);
+        return savedTheme;
+    });
 
     const toggleTheme = () => {
         const newTheme = theme === 'light' ? 'dark' : 'light';

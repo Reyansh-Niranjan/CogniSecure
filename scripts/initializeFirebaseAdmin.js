@@ -1,6 +1,9 @@
 // ============================================
 console.log(`📦 Project ID: ${process.env.VITE_FIREBASE_PROJECT_ID}`);
 
+const admin = require('firebase-admin');
+const db = admin.firestore();
+
 // ============================================
 // SAMPLE DATA
 // ============================================

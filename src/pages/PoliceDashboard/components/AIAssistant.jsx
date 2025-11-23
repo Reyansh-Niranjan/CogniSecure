@@ -5,10 +5,10 @@
 // It uses OpenRouter API for AI responses with vision capabilities
 // ============================================
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
-// OpenRouter API Key (Provided by user)
-const API_KEY = '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';
+// OpenRouter API Key from environment (optionally provided)
+const ENV_OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
 /**
  * AIAssistant Component
@@ -19,7 +19,7 @@ const API_KEY = 'sk-or-v1-b4edaed9206cede234ff86efdffe1556cb6f2ea14af511b391103a
  * @param {function} onClose - Callback to close (optional)
  * @param {object} context - Context data (e.g., current incident with media)
  */
-export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context }) {
+export default function AIAssistant({ isOpen: controlledIsOpen, onClose, onOpen, context, onContextProcessed }) {
   // State for chat visibility (internal if not controlled)
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isVisible = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
@@ -27,7 +27,7 @@ export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context
   // Chat history state
   const [messages, setMessages] = useState([
     {
-      id: 0,
+      id: 'msg-initial-0',
       type: 'assistant',
       text: 'Hello Officer. I am ready to assist you. I can analyze incident footage, draft reports, and summarize events.',
       timestamp: new Date()
@@ -37,69 +37,64 @@ export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context
   // Input state
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+  // use refs for dedupe/processing to avoid race conditions with state updates
+  const processingRef = useRef(false);
+  const lastHandledContextRef = useRef(null);
 
   // Ref for auto-scrolling
   const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
+  // OpenRouter key can come from environment or from localStorage (dev-time entry)
+  const [apiKey, setApiKey] = useState(() => {
+    try {
+      return ENV_OPENROUTER_API_KEY || (typeof localStorage !== 'undefined' ? localStorage.getItem('OPENROUTER_API_KEY') : null);
+    } catch (e) {
+      return ENV_OPENROUTER_API_KEY || null;
+    }
+  });
+  const [keyInput, setKeyInput] = useState('');
+
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isVisible]);
-
-  // Handle external context triggers (e.g., "Make a FIR")
-  useEffect(() => {
-    if (context && context.action && isVisible) {
-      handleContextAction(context);
-    }
-  }, [context, isVisible]);
-
-  const handleContextAction = async (ctx) => {
-    const { action, data } = ctx;
-    let prompt = '';
-
-    if (action === 'generate_fir') {
-      prompt = `Draft a First Information Report (FIR) for this incident. 
-      Details:
-      - Type: ${data.type}
-      - Location: ${data.location}
-      - Time: ${data.timestamp}
-      - Description: ${data.description}
-      
-      Please analyze the visual evidence if provided and include technical details.`;
-    } else if (action === 'summarize') {
-      prompt = `Provide a concise summary of this incident for the shift briefing. Focus on key events and immediate actions required.`;
-    }
-
-    if (prompt) {
-      // Add user message representing the action
-      const userMsg = {
-        id: Date.now(),
-        type: 'user',
-        text: action === 'generate_fir' ? 'Draft FIR for this incident' : 'Summarize this incident',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, userMsg]);
-
-      // Trigger AI call
-      // Use snapshotUrl for vision analysis as video URLs (mp4) are not supported by image_url
-      const imageUrl = data.snapshotUrl || (data.mediaUrl && data.mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? data.mediaUrl : null);
-      await callOpenRouter(prompt, imageUrl);
+  const saveKeyToLocal = () => {
+    try {
+      if (keyInput && typeof localStorage !== 'undefined') {
+        localStorage.setItem('OPENROUTER_API_KEY', keyInput);
+        setApiKey(keyInput);
+        setKeyInput('');
+      }
+    } catch (e) {
+      console.warn('Unable to save API key to localStorage', e);
     }
   };
 
-  // Pre-defined commands for quick access
-  const suggestedCommands = [
-    'Search recent incidents',
-    'Analyze patterns',
-    'Show crime statistics',
-    'Find similar cases'
-  ];
+  const clearLocalKey = () => {
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.removeItem('OPENROUTER_API_KEY');
+    } catch (e) {}
+    setApiKey(ENV_OPENROUTER_API_KEY || null);
+  };
+
+  // Generate a reasonably-unique id for messages
+  const genId = () => `${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 
   // Call OpenRouter API
-  const callOpenRouter = async (prompt, imageUrl = null) => {
+  const callOpenRouter = useCallback(async (prompt, imageUrl = null) => {
+    const key = apiKey || ENV_OPENROUTER_API_KEY;
+    if (!key) {
+      const errorMessage = {
+        id: genId(),
+        type: 'assistant',
+        text: "OpenRouter API key not configured. Paste it into the AI Assistant or set VITE_OPENROUTER_API_KEY.",
+        timestamp: new Date(),
+        isError: true
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      return;
+    }
     setIsTyping(true);
     try {
       const content = [{ type: 'text', text: prompt }];
@@ -115,13 +110,13 @@ export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://cognisecure.local', // Required by OpenRouter
           'X-Title': 'CogniSecure Police Dashboard'
         },
         body: JSON.stringify({
-          model: 'meta-llama/Meta-Llama-3.1-8B-Instruct', // Updated to a valid OpenRouter model
+          model: 'openai/gpt-4o-mini', // Updated to a currently available OpenRouter model
           messages: [
             {
               role: 'system',
@@ -136,25 +131,53 @@ export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context
         })
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        // Try to read error message from body
+        let errText = `AI service error: ${response.status} ${response.statusText}`;
+        try {
+          const errBody = await response.json();
+          if (errBody?.error) errText += ` - ${errBody.error}`;
+          else if (errBody?.message) errText += ` - ${errBody.message}`;
+        } catch (e) {
+          // ignore JSON parse errors
+        }
+        const errorMessage = {
+          id: genId(),
+          type: 'assistant',
+          text: errText,
+          timestamp: new Date(),
+          isError: true
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        throw new Error(errText);
+      }
 
-      if (data.choices && data.choices.length > 0) {
-        const aiText = data.choices[0].message.content;
+      const data = await response.json();
+      const aiText = data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.content ?? null;
+      if (aiText) {
         const aiMessage = {
-          id: Date.now() + 1,
+          id: genId(),
           type: 'assistant',
           text: aiText,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, aiMessage]);
       } else {
+        const errorMessage = {
+          id: genId(),
+          type: 'assistant',
+          text: 'No response from AI (empty choices).',
+          timestamp: new Date(),
+          isError: true
+        };
+        setMessages(prev => [...prev, errorMessage]);
         throw new Error('No response from AI');
       }
 
     } catch (error) {
       console.error('AI API Error:', error);
       const errorMessage = {
-        id: Date.now() + 1,
+        id: genId(),
         type: 'assistant',
         text: "Connection Error: Unable to reach AI services. Please check your internet connection.",
         timestamp: new Date(),
@@ -164,14 +187,97 @@ export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context
     } finally {
       setIsTyping(false);
     }
-  };
+  }, [messages, apiKey]);
+
+  const handleContextAction = useCallback(async (ctx) => {
+    if (processingRef.current) return; // Prevent duplicate processing
+
+    const { action, data } = ctx;
+    let prompt = '';
+
+    if (action === 'generate_fir') {
+      prompt = `Draft a First Information Report (FIR) for this incident.
+      Details:
+      - Type: ${data.type}
+      - Location: ${data.location}
+      - Time: ${data.timestamp}
+      - Description: ${data.description}
+
+      Please analyze the visual evidence if provided and include technical details.`;
+    } else if (action === 'summarize') {
+      prompt = `Provide a concise summary of this incident for the shift briefing. Focus on key events and immediate actions required.`;
+    }
+
+    if (prompt) {
+      processingRef.current = true;
+      setIsProcessingAction(true);
+
+      // Add user message representing the action
+      const userMsg = {
+        id: genId(),
+        type: 'user',
+        text: action === 'generate_fir' ? 'Draft FIR for this incident' : 'Summarize this incident',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMsg]);
+
+      try {
+        // Trigger AI call
+        // Use snapshotUrl for vision analysis as video URLs (mp4) are not supported by image_url
+        const imageUrl = data.snapshotUrl || (data.mediaUrl && data.mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? data.mediaUrl : null);
+        await callOpenRouter(prompt, imageUrl);
+      } finally {
+        processingRef.current = false;
+        setIsProcessingAction(false);
+      }
+    }
+  }, [callOpenRouter, isProcessingAction]);
+
+  // Handle external context triggers (e.g., "Make a FIR")
+  useEffect(() => {
+    if (context && context.action && isVisible) {
+      // Dedupe by context._id or by a simple signature so same action doesn't run multiple times
+      const ctxId = context._id ?? JSON.stringify({ action: context.action, dataId: context.data?.id });
+      if (lastHandledContextRef.current === ctxId) return;
+      lastHandledContextRef.current = ctxId;
+
+      handleContextAction(context);
+
+      // Clear context after processing to prevent duplicate triggers in parent
+      if (onContextProcessed) {
+        onContextProcessed();
+      }
+    }
+  }, [context, isVisible, handleContextAction, onContextProcessed]);
+
+  // Clear the last handled context when the assistant is closed so the same context can be re-triggered later
+  useEffect(() => {
+    if (!isVisible) {
+      lastHandledContextRef.current = null;
+    }
+  }, [isVisible]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isVisible, scrollToBottom]);
+
+  // Pre-defined commands for quick access
+  const suggestedCommands = [
+    'Search recent incidents',
+    'Analyze patterns',
+    'Show crime statistics',
+    'Find similar cases'
+  ];
+
+  
 
   // Handle sending a message
   const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMessage = {
-      id: Date.now(),
+      id: genId(),
       type: 'user',
       text: input,
       timestamp: new Date()
@@ -192,9 +298,14 @@ export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context
 
   const toggleOpen = () => {
     if (onClose && isVisible) {
+      // If visible and onClose provided, call it to close
       onClose();
     } else if (controlledIsOpen !== undefined) {
-      // If controlled but no onClose (shouldn't happen), do nothing or warn
+      // Controlled mode: call onOpen if provided to request open
+      if (typeof onOpen === 'function' && !isVisible) {
+        onOpen();
+      }
+      // If controlled but no onOpen, do nothing
     } else {
       setInternalIsOpen(!internalIsOpen);
     }
@@ -249,6 +360,27 @@ export default function AIAssistant({ isOpen: controlledIsOpen, onClose, context
             </svg>
             <span>Secure Connection • Vision Enabled</span>
           </div>
+
+          {/* API Key entry (development) */}
+          {!apiKey && (
+            <div className="api-key-input" style={{ padding: '12px var(--space-lg)', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="password"
+                placeholder="Paste OpenRouter API key (stored locally)"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid var(--color-border)' }}
+              />
+              <button className="send-btn" onClick={saveKeyToLocal} disabled={!keyInput} style={{ padding: '8px 12px' }}>
+                Save
+              </button>
+              {ENV_OPENROUTER_API_KEY && (
+                <button className="send-btn" onClick={() => setApiKey(ENV_OPENROUTER_API_KEY)} style={{ padding: '8px 12px' }}>
+                  Use Env
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Messages Area */}
           <div className="ai-messages">

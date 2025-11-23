@@ -137,7 +137,7 @@ export default function PasskeyAuth({ onSuccess, isLoading, mode = 'login' }) {
                                     <line x1="12" y1="16" x2="12" y2="12" strokeWidth="2" />
                                     <line x1="12" y1="8" x2="12.01" y2="8" strokeWidth="2" />
                                 </svg>
-                                <span>You'll register a passkey using your fingerprint, face ID, YubiKey, or other security key</span>
+                                <span>You will register a passkey using your fingerprint, face ID, YubiKey, or other security key</span>
                             </div>
                         </>
                     ) : (
@@ -174,7 +174,7 @@ export default function PasskeyAuth({ onSuccess, isLoading, mode = 'login' }) {
                                     <line x1="12" y1="16" x2="12" y2="12" strokeWidth="2" />
                                     <line x1="12" y1="8" x2="12.01" y2="8" strokeWidth="2" />
                                 </svg>
-                                <span>You'll authenticate using your fingerprint, face ID, YubiKey, or other registered passkey</span>
+                                <span>You will authenticate using your fingerprint, face ID, YubiKey, or other registered passkey</span>
                             </div>
                         </>
                     )}

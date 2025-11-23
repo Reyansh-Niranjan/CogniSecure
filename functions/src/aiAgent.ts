@@ -4,6 +4,19 @@ import OpenAI from 'openai';
 
 const db = admin.firestore();
 
+interface Alert {
+  id: string;
+  timestamp_recorded: number;
+  timestamp_received: number;
+  delay_ms: number;
+  rpi_device_id: string;
+  location?: string;
+  status: string;
+  photo_url?: string;
+  video_url?: string;
+  notes?: string;
+}
+
 // Initialize OpenRouter client
 const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
@@ -186,7 +199,7 @@ async function buildRestrictedContext(alertIds: string[]): Promise<{
 
     const alerts = alertDocs
         .filter((doc) => doc.exists)
-        .map((doc) => ({ id: doc.id, ...doc.data() }));
+        .map((doc) => ({ id: doc.id, ...doc.data() } as Alert));
 
     if (alerts.length === 0) {
         return {

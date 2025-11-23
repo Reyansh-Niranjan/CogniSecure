@@ -2,7 +2,6 @@
 // EMPTY STATE COMPONENT - CITIZEN DASHBOARD
 // ============================================
 
-import React from 'react';
 import './EmptyState.css';
 
 /**
@@ -23,7 +22,7 @@ const EmptyState = ({ message = "No updates found" }) => {
             </div>
             <h3 className="empty-state-title">{message}</h3>
             <p className="empty-state-description">
-                Try adjusting your filters or search terms to find what you're looking for.
+                Try adjusting your filters or search terms to find what you are looking for.
             </p>
         </div>
     );

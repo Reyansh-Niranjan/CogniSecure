@@ -169,7 +169,7 @@ export default function Dashboard({ user, onTriggerNotify }) {
                   </svg>
                 </div>
                 <div className="stat-content">
-                  <span className="stat-label">Today's Incidents</span>
+                  <span className="stat-label">Todays Incidents</span>
                   <span className="stat-value text-primary">{stats.todayIncidents}</span>
                 </div>
               </div>

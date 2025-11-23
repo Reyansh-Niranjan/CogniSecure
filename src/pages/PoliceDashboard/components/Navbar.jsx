@@ -5,7 +5,6 @@
 // It displays the branding, user profile, and alert status
 // ============================================
 
-import React from 'react';
 
 /**
  * Navbar Component

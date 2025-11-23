@@ -1,5 +1,12 @@
 const admin = require('firebase-admin');
-const path = require('path');
+
+// Initialize the Admin SDK when running scripts locally
+if (!admin.apps || admin.apps.length === 0) {
+    const projectId = process.env.GCLOUD_PROJECT || process.env.VITE_FIREBASE_PROJECT_ID || 'cogni-b9d6b';
+    admin.initializeApp({ projectId });
+}
+
+const db = admin.firestore();
 
 // ============================================
 // SAMPLE DATA

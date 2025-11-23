@@ -174,10 +174,34 @@ export const getIncidentsWithFallback = async (db) => {
             return { data: mockIncidents, isMock: true };
         }
 
+        // Helper to normalize various timestamp shapes coming from Firestore
+        const normalizeTimestamp = (ts) => {
+            if (!ts) return new Date().toISOString();
+            // Firestore Timestamp object (has toDate)
+            if (typeof ts.toDate === 'function') {
+                return ts.toDate().toISOString();
+            }
+            // Firestore-like object with seconds/nanos
+            if (typeof ts.seconds === 'number') {
+                const millis = ts.seconds * 1000 + (ts.nanoseconds || ts.nanos || 0) / 1e6;
+                return new Date(millis).toISOString();
+            }
+            // ISO string
+            if (typeof ts === 'string') {
+                const d = new Date(ts);
+                return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+            }
+            // numeric timestamp (ms)
+            if (typeof ts === 'number') {
+                return new Date(ts).toISOString();
+            }
+            return new Date().toISOString();
+        };
+
         const incidents = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
-            timestamp: doc.data().timestamp?.toDate().toISOString() || new Date().toISOString()
+            timestamp: normalizeTimestamp(doc.data().timestamp)
         }));
 
         console.log('🔥 FETCHED INCIDENTS FROM FIREBASE:', incidents.length, 'items');
